@@ -6535,20 +6535,25 @@ fdb_status fdb_compact_file(fdb_file_handle *fhandle,
 
 		direct_fd = open((char *)handle->filename, file_flag, 0666);
 		if (direct_fd <= 0) {
+			printf("Failed to repoen direct io file descriptor\n");
 			filemgr_mutex_unlock(handle->file);
 			return FDB_RESULT_OPEN_FAIL;
 		}
 
 		// switch to direct_io fd
 		handle->file->fd = direct_fd;
+		close(old_fd);
 		status = _fdb_compact_file(handle, new_file, new_bhandle, new_dhandle,
 								 new_trie, new_seqtrie, new_seqtree, new_staletree,
 								 marker_bid, clone_docs);
+		printf("Compaction done\n");
+#if 0
 		filemgr_mutex_lock(handle->file);
 		handle->file->fd = old_fd;
 		filemgr_mutex_unlock(handle->file);
 		// close temp file descriptor
 		close(direct_fd);
+#endif
 	} else {
 		status = _fdb_compact_file(handle, new_file, new_bhandle, new_dhandle,
 								 new_trie, new_seqtrie, new_seqtree, new_staletree,

@@ -165,7 +165,15 @@ fdb_status fdb_log(err_log_callback *log_callback,
         vsprintf(msg, format, args);
         va_end(args);
         log_callback->callback(status, msg, log_callback->ctx_data);
-    }
+    } else {
+        char msg[4096];
+        va_list args;
+        va_start(args, format);
+        vsprintf(msg, format, args);
+        va_end(args);
+		printf(msg);
+		printf("\n");
+	}
     return status;
 }
 
@@ -715,7 +723,7 @@ static fdb_status _filemgr_load_sb(struct filemgr *file,
     return status;
 }
 
-#define F_BLOCK_NUM (5 * 1024)
+#define F_BLOCK_NUM (1 * 1024)
 #define F_BLOCK_SIZE ((uint64_t)1024 * 1024)
 #define F_ALLOC_SIZE (F_BLOCK_NUM * F_BLOCK_SIZE)
 
@@ -1635,6 +1643,7 @@ void filemgr_free_func(struct hash_elem *h)
 
     atomic_destroy_uint64_t(&file->pos);
     atomic_destroy_uint64_t(&file->last_commit);
+	atomic_destroy_uint64_t(&file->fallocate);
     atomic_destroy_uint64_t(&file->last_commit_bmp_revnum);
     atomic_destroy_uint32_t(&file->throttling_delay);
     atomic_destroy_uint64_t(&file->num_invalidated_blocks);
@@ -1753,6 +1762,7 @@ fdb_status filemgr_shutdown()
 
 int filemgr_set_streamid(struct filemgr *file, int streamid)
 {
+	printf("Use stream: %d\n", streamid);
 	return file->ops->posix_fadvise(file->fd, 0, 
 							streamid, POSIX_FADV_STREAMID);
 }
@@ -1778,10 +1788,18 @@ bid_t filemgr_alloc(struct filemgr *file, err_log_callback *log_callback)
 	if (file->config->fallocate) {
 		prealloc = atomic_get_uint64_t(&file->fallocate);
 		if (0 == prealloc || 
-				atomic_get_uint64_t(&file->pos)/F_ALLOC_SIZE > prealloc) {
+				atomic_get_uint64_t(&file->pos) > prealloc * F_ALLOC_SIZE) {
 			atomic_add_uint64_t(&file->fallocate, 1);
-			file->ops->fallocate(file->fd, 0, 0, 
+			printf("\nPrealloca: %ld, file pos %ld\n",
+					prealloc * F_ALLOC_SIZE, atomic_get_uint64_t(&file->pos));
+
+#if 0
+			   file->ops->fallocate(file->fd, 0, 0, 
 							F_ALLOC_SIZE * (prealloc + 1));
+#else
+			   file->ops->posix_fallocate(file->fd, 0, 
+							F_ALLOC_SIZE * (prealloc + 1));
+#endif
 		}
 	}
 	/* end: ogh */
@@ -2405,7 +2423,11 @@ fdb_status filemgr_commit_bid(struct filemgr *file, bid_t bid,
     spin_unlock(&file->lock);
 
     if (sync) {
-        result = file->ops->fsync(file->fd);
+		if (file->config->fallocate) {
+			result = file->ops->fdatasync(file->fd);
+		} else {
+			result = file->ops->fsync(file->fd);
+		}
         _log_errno_str(file->ops, log_callback, (fdb_status)result,
                        "FSYNC", file->filename);
     }
@@ -2427,7 +2449,12 @@ fdb_status filemgr_sync(struct filemgr *file, bool sync_option,
     }
 
     if (sync_option && file->fflags & FILEMGR_SYNC) {
-        int rv = file->ops->fsync(file->fd);
+		int rv;
+		if (file->config->fallocate) {
+			rv = file->ops->fdatasync(file->fd);
+		} else {
+        	rv = file->ops->fsync(file->fd);
+		}
         _log_errno_str(file->ops, log_callback, (fdb_status)rv, "FSYNC", file->filename);
         return (fdb_status) rv;
     }

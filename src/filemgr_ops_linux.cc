@@ -49,10 +49,19 @@ int _filemgr_linux_open(const char *pathname, int flags, mode_t mode)
 ssize_t _filemgr_linux_pwrite(int fd, void *buf, size_t count, cs_off_t offset)
 {
     ssize_t rv;
+	uint8_t *temp;
+	int ret = posix_memalign((void**)&temp, 1024, count);
+	if (ret != 0) {
+		printf("\nError to memalign\n");
+		return (ssize_t) FDB_RESULT_WRITE_FAIL;
+	}
+	memcpy(temp, buf, count);
     do {
-        rv = pwrite(fd, buf, count, offset);
+        //rv = pwrite(fd, buf, count, offset);
+		rv = pwrite(fd, temp, count, offset);
     } while (rv == -1 && errno == EINTR); // LCOV_EXCL_LINE
 
+	free(temp);
     if (rv < 0) {
         return (ssize_t) FDB_RESULT_WRITE_FAIL; // LCOV_EXCL_LINE
     }
@@ -62,10 +71,20 @@ ssize_t _filemgr_linux_pwrite(int fd, void *buf, size_t count, cs_off_t offset)
 ssize_t _filemgr_linux_pread(int fd, void *buf, size_t count, cs_off_t offset)
 {
     ssize_t rv;
-    do {
-        rv = pread(fd, buf, count, offset);
-    } while (rv == -1 && errno == EINTR); // LCOV_EXCL_LINE
+	uint8_t *temp;
+	int ret = posix_memalign((void**)&temp, 1024, count);
+	if (ret != 0) {
+		printf("\nError to memalign\n");
+		return (ssize_t) FDB_RESULT_WRITE_FAIL;
+	}
 
+    do {
+        //rv = pread(fd, buf, count, offset);
+        rv = pread(fd, temp, count, offset);
+    } while (rv == -1 && errno == EINTR); // LCOV_EXCL_LINE
+	memcpy(buf, temp, count);
+	free(temp);
+	
     if (rv < 0) {
         return (ssize_t) FDB_RESULT_READ_FAIL; // LCOV_EXCL_LINE
     }
