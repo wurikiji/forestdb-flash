@@ -87,7 +87,7 @@ fdb_config get_default_config(void) {
     fconfig.num_compactor_threads = DEFAULT_NUM_COMPACTOR_THREADS;
     fconfig.num_bgflusher_threads = DEFAULT_NUM_BGFLUSHER_THREADS;
     // Block reusing threshold, 65% by default (i.e., almost 3x space amplification)
-    fconfig.block_reusing_threshold = 65;
+    fconfig.block_reusing_threshold = 30;
     // Keep at least 5 headers
     fconfig.num_keeping_headers = 5;
 

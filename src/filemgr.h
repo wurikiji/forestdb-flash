@@ -161,7 +161,9 @@ struct filemgr {
     uint16_t filename_len;
     uint32_t blocksize;
     int fd;
-	atomic_uint64_t fallocate;
+	uint64_t fallocate; //ogh
+	uint64_t real_eof; //ogh
+	atomic_uint64_t atomic_fallocate; //ogh
     atomic_uint64_t pos;
     atomic_uint64_t last_commit;
     atomic_uint64_t last_commit_bmp_revnum;

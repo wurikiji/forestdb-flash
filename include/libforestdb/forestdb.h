@@ -769,6 +769,10 @@ size_t fdb_get_buffer_cache_used();
 LIBFDB_API
 size_t fdb_estimate_space_used(fdb_file_handle *fhandle);
 
+//ogh 
+LIBFDB_API
+size_t fdb_get_eof(fdb_file_handle *fhandle);
+
 /**
  * Return the overall disk space actively used by all snapshots starting from
  * a given snapshot marker.

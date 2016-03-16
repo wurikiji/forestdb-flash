@@ -171,8 +171,7 @@ fdb_status fdb_log(err_log_callback *log_callback,
         va_start(args, format);
         vsprintf(msg, format, args);
         va_end(args);
-		printf(msg);
-		printf("\n");
+		printf("%s\n",msg);
 	}
     return status;
 }
@@ -334,6 +333,9 @@ ssize_t filemgr_write_blocks(struct filemgr *file, void *buf, unsigned num_block
     cs_off_t offset = start_bid * blocksize;
     size_t nbytes = num_blocks * blocksize;
     if (file->encryption.ops == NULL) {
+		if (file->real_eof <= offset + nbytes) {
+			file->real_eof = offset + nbytes;
+		}
         return file->ops->pwrite(file->fd, buf, nbytes, offset);
     } else {
         uint8_t *encrypted_buf;
@@ -353,6 +355,9 @@ ssize_t filemgr_write_blocks(struct filemgr *file, void *buf, unsigned num_block
             free(encrypted_buf);
         if (status != FDB_RESULT_SUCCESS)
             return status;
+		if (file->real_eof <= offset + nbytes) {
+			file->real_eof = offset + nbytes;
+		}
         return file->ops->pwrite(file->fd, encrypted_buf, nbytes, offset);
     }
 }
@@ -725,7 +730,7 @@ static fdb_status _filemgr_load_sb(struct filemgr *file,
 
 #define F_BLOCK_NUM (1 * 1024)
 #define F_BLOCK_SIZE ((uint64_t)1024 * 1024)
-#define F_ALLOC_SIZE (F_BLOCK_NUM * F_BLOCK_SIZE)
+#define F_ALLOC_SIZE ((uint64_t)F_BLOCK_NUM * F_BLOCK_SIZE)
 
 int filemgr_set_streamid(struct filemgr *file, int streamid);
 
@@ -888,7 +893,9 @@ filemgr_open_result filemgr_open(char *filename, struct filemgr_ops *ops,
     atomic_init_uint64_t(&file->last_commit, offset);
     atomic_init_uint64_t(&file->last_commit_bmp_revnum, 0);
     atomic_init_uint64_t(&file->pos, offset);
-	atomic_init_uint64_t(&file->fallocate,
+	file->fallocate = (offset + F_ALLOC_SIZE - 1) / F_ALLOC_SIZE;
+	file->real_eof = offset;
+	atomic_init_uint64_t(&file->atomic_fallocate,
 			(offset + F_ALLOC_SIZE -1) / F_ALLOC_SIZE);
     atomic_init_uint32_t(&file->throttling_delay, 0);
     atomic_init_uint64_t(&file->num_invalidated_blocks, 0);
@@ -1643,7 +1650,7 @@ void filemgr_free_func(struct hash_elem *h)
 
     atomic_destroy_uint64_t(&file->pos);
     atomic_destroy_uint64_t(&file->last_commit);
-	atomic_destroy_uint64_t(&file->fallocate);
+	atomic_destroy_uint64_t(&file->atomic_fallocate);
     atomic_destroy_uint64_t(&file->last_commit_bmp_revnum);
     atomic_destroy_uint32_t(&file->throttling_delay);
     atomic_destroy_uint64_t(&file->num_invalidated_blocks);
@@ -1772,7 +1779,6 @@ bid_t filemgr_alloc(struct filemgr *file, err_log_callback *log_callback)
 {
     spin_lock(&file->lock);
     bid_t bid = BLK_NOT_FOUND;
-	off_t prealloc = 0;
 
     // block reusing is not allowed for being compacted file
     // for easy implementation.
@@ -1785,23 +1791,18 @@ bid_t filemgr_alloc(struct filemgr *file, err_log_callback *log_callback)
         atomic_add_uint64_t(&file->pos, file->blocksize);
     }
 	/* begin: ogh */
-	if (file->config->fallocate) {
-		prealloc = atomic_get_uint64_t(&file->fallocate);
-		if (0 == prealloc || 
-				atomic_get_uint64_t(&file->pos) > prealloc * F_ALLOC_SIZE) {
-			atomic_add_uint64_t(&file->fallocate, 1);
-			printf("\nPrealloca: %ld, file pos %ld\n",
-					prealloc * F_ALLOC_SIZE, atomic_get_uint64_t(&file->pos));
-
-#if 0
-			   file->ops->fallocate(file->fd, 0, 0, 
-							F_ALLOC_SIZE * (prealloc + 1));
-#else
-			   file->ops->posix_fallocate(file->fd, 0, 
-							F_ALLOC_SIZE * (prealloc + 1));
+#if 1
+	if (file->config->fallocate &&
+			file->fallocate * F_ALLOC_SIZE < bid * file->blocksize) {
+		file->fallocate++;
+		printf("\nFallocate file from %lu to %lu\n\n", file->fallocate-1, file->fallocate);
+#if 1
+		file->ops->posix_fallocate(file->fd, 
+				F_ALLOC_SIZE * (file->fallocate-1), 
+				F_ALLOC_SIZE);
 #endif
-		}
 	}
+#endif
 	/* end: ogh */
 
     if (global_config.ncacheblock <= 0) {
@@ -1826,6 +1827,13 @@ void filemgr_alloc_multiple(struct filemgr *file, int nblock, bid_t *begin,
     *end = *begin + nblock - 1;
     atomic_add_uint64_t(&file->pos, file->blocksize * nblock);
 
+	if (file->config->fallocate &&
+			file->fallocate * F_ALLOC_SIZE <= (*end) * file->blocksize) {
+		file->fallocate = (*end) * file->blocksize / F_ALLOC_SIZE + 1;
+		file->ops->posix_fallocate(file->fd, 
+				F_ALLOC_SIZE * (file->fallocate-1), 
+				F_ALLOC_SIZE);
+	}
     if (global_config.ncacheblock <= 0) {
         // if block cache is turned off, write the allocated block before use
         uint8_t _buf = 0x0;
@@ -1849,6 +1857,13 @@ bid_t filemgr_alloc_multiple_cond(struct filemgr *file, bid_t nextbid, int nbloc
         *end = *begin + nblock - 1;
         atomic_add_uint64_t(&file->pos, file->blocksize * nblock);
 
+		if (file->config->fallocate &&
+				file->fallocate * F_ALLOC_SIZE <= (*end) * file->blocksize) {
+			file->fallocate = (*end) * file->blocksize / F_ALLOC_SIZE + 1;
+			file->ops->posix_fallocate(file->fd, 
+					F_ALLOC_SIZE * (file->fallocate-1), 
+					F_ALLOC_SIZE);
+		}
         if (global_config.ncacheblock <= 0) {
             // if block cache is turned off, write the allocated block before use
             uint8_t _buf = 0x0;
@@ -2157,10 +2172,16 @@ fdb_status filemgr_write_offset(struct filemgr *file, bid_t bid,
             if (r == 0) {
                 // cache miss
                 // write partially .. we have to read previous contents of the block
+#if 1
                 uint64_t cur_file_pos = file->ops->goto_eof(file->fd);
+#else
+				uint64_t cur_file_pos = file->real_eof;
+#endif
                 bid_t cur_file_last_bid = cur_file_pos / file->blocksize;
                 void *_buf = _filemgr_get_temp_buf();
 
+
+				//printf("Cur: %lu, Last: %lu\n", bid, cur_file_last_bid);
                 if (bid >= cur_file_last_bid) {
                     // this is the first time to write this block
                     // we don't need to read previous block from file.
@@ -2478,6 +2499,7 @@ fdb_status filemgr_copy_file_range(struct filemgr *src_file,
         return fs;
     }
     atomic_store_uint64_t(&dst_file->pos, (dst_bid + clone_len) * blocksize);
+	dst_file->fallocate = (dst_bid + clone_len) * blocksize;
     return FDB_RESULT_SUCCESS;
 }
 
@@ -2741,6 +2763,8 @@ fdb_status filemgr_destroy_file(char *filename,
                 return FDB_RESULT_SEEK_FAIL;
             } else { // Need to read DB header which contains old filename
                 atomic_store_uint64_t(&file->pos, offset);
+				file->fallocate = offset;
+				printf("Second offset is %lu\n\n", offset);
                 // initialize CRC mode
                 if (file->config && file->config->options & FILEMGR_CREATE_CRC32) {
                     file->crc_mode = CRC32;

@@ -1231,6 +1231,9 @@ fdb_status sb_write(struct filemgr *file, size_t sb_no,
     memset(buf + blocksize, BLK_MARKER_SB, BLK_MARKER_SIZE);
 
     // directly write a block bypassing block cache
+	if (file->real_eof < sb_no * real_blocksize + real_blocksize) {
+		file->real_eof = sb_no * real_blocksize + real_blocksize;
+	}
     r = file->ops->pwrite(file->fd, buf, real_blocksize, sb_no * real_blocksize);
     if (r != real_blocksize) {
         char errno_msg[512];

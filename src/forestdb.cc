@@ -6888,6 +6888,7 @@ static fdb_status _fdb_compact(fdb_file_handle *fhandle,
             in_place_compaction = true;
             compactor_get_next_filename(handle->file->filename, nextfile);
             new_filename = nextfile;
+			printf("Do inplace compaction\n");
         }
         fs = fdb_compact_file(fhandle, new_filename, in_place_compaction,
                               (bid_t)marker, clone_docs, new_encryption_key);
@@ -7270,6 +7271,19 @@ const char *fdb_latency_stat_name(fdb_latency_stat_type type)
     return filemgr_latency_stat_name(type);
 }
 
+LIBFDB_API
+size_t fdb_get_eof(fdb_file_handle *fhandle)
+{
+	struct filemgr *file;
+
+	if (!fhandle) {
+		return 0;
+	}
+
+	file = fhandle->root->file;
+
+	return file->real_eof;
+}
 // roughly estimate the space occupied db handle HANDLE
 LIBFDB_API
 size_t fdb_estimate_space_used(fdb_file_handle *fhandle)

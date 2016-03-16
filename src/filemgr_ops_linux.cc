@@ -460,7 +460,7 @@ int _filemgr_linux_copy_file_range(int fs_type,
 }
 
 int _filemgr_linux_posix_fallocate(int fd,
-									off_t offset, off_t len) 
+									uint64_t offset, uint64_t len) 
 {
 	int ret = posix_fallocate(fd, offset, len);
 
@@ -468,7 +468,7 @@ int _filemgr_linux_posix_fallocate(int fd,
 }
 
 int _filemgr_linux_fallocate(int fd,
-							int mode, off_t offset, off_t len)
+							int mode, uint64_t offset, uint64_t len)
 {
 	int ret = fallocate(fd, mode, offset, len);
 
