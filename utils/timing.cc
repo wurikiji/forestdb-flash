@@ -23,6 +23,7 @@
 
 ts_nsec timed_fdb_commit(fdb_file_handle *fhandle, bool walflush){
 
+#if 0
   ts_nsec start, end;
   fdb_status status;
 
@@ -40,9 +41,11 @@ ts_nsec timed_fdb_commit(fdb_file_handle *fhandle, bool walflush){
   } else {
     return ERR_NS;
   }
+#endif
 }
 
 ts_nsec timed_fdb_compact(fdb_file_handle *fhandle){
+#if 0
 
   ts_nsec start, end;
   fdb_status status;
@@ -57,9 +60,11 @@ ts_nsec timed_fdb_compact(fdb_file_handle *fhandle){
   } else {
     return ERR_NS;
   }
+#endif
 }
 
 ts_nsec timed_fdb_set(fdb_kvs_handle *kv, fdb_doc *doc){
+#if 0 
 
   ts_nsec start, end;
   fdb_status status;
@@ -73,9 +78,11 @@ ts_nsec timed_fdb_set(fdb_kvs_handle *kv, fdb_doc *doc){
   } else {
     return ERR_NS;
   }
+#endif
 }
 
 ts_nsec timed_fdb_get(fdb_kvs_handle *kv, fdb_doc *doc){
+#if 0 
 
   ts_nsec start, end;
   fdb_status status;
@@ -89,9 +96,11 @@ ts_nsec timed_fdb_get(fdb_kvs_handle *kv, fdb_doc *doc){
   } else {
     return ERR_NS;
   }
+#endif
 }
 
 ts_nsec timed_fdb_delete(fdb_kvs_handle *kv, fdb_doc *doc){
+#if 0
 
   ts_nsec start, end;
   fdb_status status;
@@ -105,9 +114,11 @@ ts_nsec timed_fdb_delete(fdb_kvs_handle *kv, fdb_doc *doc){
   } else {
     return ERR_NS;
   }
+#endif
 }
 
 ts_nsec timed_fdb_snapshot(fdb_kvs_handle *kv, fdb_kvs_handle **snap_kv){
+#if 0 
 
     ts_nsec start, end;
     fdb_status status;
@@ -122,9 +133,11 @@ ts_nsec timed_fdb_snapshot(fdb_kvs_handle *kv, fdb_kvs_handle **snap_kv){
       return ERR_NS;
     }
 
+#endif
 }
 
 ts_nsec timed_fdb_kvs_close(fdb_kvs_handle *kv){
+#if 0
 
     ts_nsec start, end;
     fdb_status status;
@@ -139,9 +152,11 @@ ts_nsec timed_fdb_kvs_close(fdb_kvs_handle *kv){
       return ERR_NS;
     }
 
+#endif
 }
 
 ts_nsec timed_fdb_close(fdb_file_handle *fhandle){
+#if 0
 
     ts_nsec start, end;
     fdb_status status;
@@ -156,9 +171,11 @@ ts_nsec timed_fdb_close(fdb_file_handle *fhandle){
       return ERR_NS;
     }
 
+#endif
 }
 
 ts_nsec timed_fdb_shutdown(){
+#if 0 
 
     ts_nsec start, end;
     fdb_status status;
@@ -173,6 +190,7 @@ ts_nsec timed_fdb_shutdown(){
       return ERR_NS;
     }
 
+#endif
 }
 
 ts_nsec timed_fdb_iterator_init(fdb_kvs_handle *kv, fdb_iterator **it){
@@ -181,7 +199,9 @@ ts_nsec timed_fdb_iterator_init(fdb_kvs_handle *kv, fdb_iterator **it){
     fdb_status status;
 
     start = get_monotonic_ts();
+#if 0
     status = fdb_iterator_init(kv, it, NULL, 0, NULL, 0, FDB_ITR_NONE);
+#endif
     end = get_monotonic_ts();
 
     if(status == FDB_RESULT_SUCCESS){
@@ -199,7 +219,9 @@ ts_nsec timed_fdb_iterator_get(fdb_iterator *it, fdb_doc **doc){
     fdb_status status;
 
     start = get_monotonic_ts();
+#if 0 
     status = fdb_iterator_get(it, doc);
+#endif 
     end = get_monotonic_ts();
 
     if(status == FDB_RESULT_SUCCESS){
@@ -216,7 +238,9 @@ ts_nsec timed_fdb_iterator_next(fdb_iterator *it){
     fdb_status status;
 
     start = get_monotonic_ts();
+#if 0
     status = fdb_iterator_next(it);
+#endif
     end = get_monotonic_ts();
 
     if(status == FDB_RESULT_SUCCESS){
@@ -233,7 +257,9 @@ ts_nsec timed_fdb_iterator_close(fdb_iterator *it){
     fdb_status status;
 
     start = get_monotonic_ts();
+#if 0
     status = fdb_iterator_close(it);
+#endif
     end = get_monotonic_ts();
 
     if(status == FDB_RESULT_SUCCESS){

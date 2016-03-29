@@ -18,6 +18,7 @@ add_executable(fdb_anomaly_test
                ${ROOT_SRC}/filemgr.cc
                filemgr_anomalous_ops.cc
                ${PROJECT_SOURCE_DIR}/${FORESTDB_FILE_OPS}
+			   ${ROOT_UTILS}/timing.cc
                ${ROOT_SRC}/forestdb.cc
                ${ROOT_SRC}/fdb_errors.cc
                ${ROOT_SRC}/hash_functions.cc

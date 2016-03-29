@@ -46,6 +46,12 @@ int _filemgr_linux_open(const char *pathname, int flags, mode_t mode)
     return fd;
 }
 
+#include <time.h>
+#include "timing.h"
+static ts_nsec elapsed_read = 0;
+static ts_nsec elapsed_write = 0;
+static ts_nsec elapsed_sync = 0;
+
 ssize_t _filemgr_linux_pwrite(int fd, void *buf, size_t count, cs_off_t offset)
 {
     ssize_t rv;
@@ -55,11 +61,16 @@ ssize_t _filemgr_linux_pwrite(int fd, void *buf, size_t count, cs_off_t offset)
 		printf("\nError to memalign\n");
 		return (ssize_t) FDB_RESULT_WRITE_FAIL;
 	}
+	ts_nsec start, end;
+	start = get_monotonic_ts();
 	memcpy(temp, buf, count);
     do {
         //rv = pwrite(fd, buf, count, offset);
 		rv = pwrite(fd, temp, count, offset);
     } while (rv == -1 && errno == EINTR); // LCOV_EXCL_LINE
+	end = get_monotonic_ts();
+
+	elapsed_write += ts_diff(start, end);
 
 	free(temp);
     if (rv < 0) {
@@ -78,12 +89,17 @@ ssize_t _filemgr_linux_pread(int fd, void *buf, size_t count, cs_off_t offset)
 		return (ssize_t) FDB_RESULT_WRITE_FAIL;
 	}
 
+	ts_nsec start, end;
+
+	start = get_monotonic_ts();
     do {
         //rv = pread(fd, buf, count, offset);
         rv = pread(fd, temp, count, offset);
     } while (rv == -1 && errno == EINTR); // LCOV_EXCL_LINE
 	memcpy(buf, temp, count);
 	free(temp);
+	end = get_monotonic_ts();
+	elapsed_read += ts_diff(start, end);
 	
     if (rv < 0) {
         return (ssize_t) FDB_RESULT_READ_FAIL; // LCOV_EXCL_LINE
@@ -104,6 +120,11 @@ int _filemgr_linux_close(int fd)
         return FDB_RESULT_CLOSE_FAIL; // LCOV_EXCL_LINE
     }
 
+	printf("\n\n============================\n");
+	printf("Elapsed write: %ld nsec\n", elapsed_write);
+	printf("Elapsed read: %ld nsec\n", elapsed_read);
+	printf("Elapsed sync: %ld nsec\n", elapsed_sync);
+	printf("=========================\n\n\n");
     return FDB_RESULT_SUCCESS;
 }
 
@@ -130,10 +151,16 @@ cs_off_t _filemgr_linux_file_size(const char *filename)
 int _filemgr_linux_fsync(int fd)
 {
     int rv;
+
+	ts_nsec start, end;
+
+	start = get_monotonic_ts();
     do {
         rv = fsync(fd);
     } while (rv == -1 && errno == EINTR); // LCOV_EXCL_LINE
 
+	end = get_monotonic_ts();
+	elapsed_sync += ts_diff(start, end);
     if (rv == -1) {
         return FDB_RESULT_FSYNC_FAIL; // LCOV_EXCL_LINE
     }
@@ -146,9 +173,14 @@ int _filemgr_linux_fdatasync(int fd)
 {
 #if defined(__linux__) && !defined(__ANDROID__)
     int rv;
+	ts_nsec start, end;
+
+	start = get_monotonic_ts();
     do {
         rv = fdatasync(fd);
     } while (rv == -1 && errno == EINTR);
+	end = get_monotonic_ts();
+	elapsed_sync += ts_diff(start, end);
 
     if (rv == -1) {
         return FDB_RESULT_FSYNC_FAIL;
