@@ -340,6 +340,7 @@ void iterator_with_concurrent_updates_test()
 
     // open db1, db2, db3 on the same file
     fconfig = fdb_get_default_config();
+    fconfig.seqtree_opt = FDB_SEQTREE_USE; // enable seqtree since get_byseq
     kvs_config = fdb_get_default_kvs_config();
     fdb_open(&dbfile, "./iterator_test1", &fconfig);
 
@@ -425,6 +426,7 @@ void iterator_compact_uncommitted_db()
     fdb_config fconfig = fdb_get_default_config();
     fdb_kvs_config kvs_config = fdb_get_default_kvs_config();
     fconfig.wal_threshold = 1024;
+    fconfig.seqtree_opt = FDB_SEQTREE_USE; // enable seqtree since get_byseq
     fconfig.flags = FDB_OPEN_FLAG_CREATE;
 
     // remove previous iterator_test files
@@ -1543,7 +1545,7 @@ void iterator_inmem_snapshot_seek_test(bool flush_wal)
     char keybuf[256], metabuf[256], bodybuf[256];
 
     // remove previous mvcc_test files
-    r = system(SHELL_DEL" mvcc_test* > errorlog.txt");
+    r = system(SHELL_DEL" iterator_test* > errorlog.txt");
     (void)r;
 
     fdb_config fconfig = fdb_get_default_config();
@@ -1553,12 +1555,8 @@ void iterator_inmem_snapshot_seek_test(bool flush_wal)
     fconfig.flags = FDB_OPEN_FLAG_CREATE;
     fconfig.compaction_threshold = 0;
 
-    // remove previous mvcc_test files
-    r = system(SHELL_DEL" mvcc_test* > errorlog.txt");
-    (void)r;
-
     // open db
-    status = fdb_open(&dbfile, "./mvcc_test1", &fconfig);
+    status = fdb_open(&dbfile, "./iterator_test1", &fconfig);
     TEST_CHK(status == FDB_RESULT_SUCCESS);
     status = fdb_kvs_open_default(dbfile, &db, &kvs_config);
     TEST_CHK(status == FDB_RESULT_SUCCESS);
@@ -1954,6 +1952,7 @@ void sequence_iterator_test()
     fconfig.buffercache_size = 0;
     fconfig.wal_threshold = 1024;
     fconfig.flags = FDB_OPEN_FLAG_CREATE;
+    fconfig.seqtree_opt = FDB_SEQTREE_USE; // enable seqtree since get_byseq
     fconfig.compaction_threshold = 0;
     fconfig.purging_interval = 1; // retain deletes until compaction
 
@@ -2190,6 +2189,7 @@ void sequence_iterator_duplicate_test()
     fdb_config fconfig = fdb_get_default_config();
     fdb_kvs_config kvs_config = fdb_get_default_kvs_config();
     fconfig.buffercache_size = 0;
+    fconfig.seqtree_opt = FDB_SEQTREE_USE; // enable seqtree since get_byseq
     fconfig.wal_threshold = 1024;
     fconfig.compaction_threshold = 0;
     fconfig.purging_interval = 1; // retain deletes until compaction
@@ -2236,21 +2236,23 @@ void sequence_iterator_duplicate_test()
 
     // repeat until fail
     count = 0;
+    seqnum = 100;
     do {
         status = fdb_iterator_get(iterator, &rdoc);
         TEST_CHK(status == FDB_RESULT_SUCCESS);
-        if (count<50) {
-            // HB+trie
-            i = count*2 + 1;
-            seqnum = 100 + (count+1)*2;
-            sprintf(bodybuf, "body%d(second)", i);
-        } else {
-            // WAL
-            i = (count-50)*2;
-            seqnum = 200 + (count-50+1);
-            sprintf(bodybuf, "body%d(third)", i);
+        if (seqnum < 140) { // point where WAL range & trie range overlap ends!
+            seqnum += 2; // WAL overlap with trie, get unique trie keys only
+        } else { // beyond this even keys in trie are also in WAL but outside..
+            seqnum ++; // the iteration range, so they can be sequentially got
         }
 
+        if (seqnum <= 200) { // uptil WAL, unique trie items are returned...
+            i = seqnum - 101;
+            sprintf(bodybuf, "body%d(second)", i);
+        } else { // once seqnum enters WAL range only WAL elements are returned..
+            i = ((seqnum - 101) % n) * 2;
+            sprintf(bodybuf, "body%d(third)", i);
+        }
         TEST_CMP(rdoc->key, doc[i]->key, rdoc->keylen);
         TEST_CMP(rdoc->meta, doc[i]->meta, rdoc->metalen);
         TEST_CMP(rdoc->body, bodybuf, rdoc->bodylen);
@@ -2260,7 +2262,7 @@ void sequence_iterator_duplicate_test()
         fdb_doc_free(rdoc);
         rdoc = NULL;
     } while (fdb_iterator_next(iterator) != FDB_RESULT_ITERATOR_FAIL);
-    TEST_CHK(count==70);
+    TEST_CHK(count==n); // since 220 > n all keys should be iterated
     fdb_iterator_close(iterator);
 
     // close db file
@@ -2305,6 +2307,7 @@ void sequence_iterator_range_test()
     fdb_config fconfig = fdb_get_default_config();
     fdb_kvs_config kvs_config = fdb_get_default_kvs_config();
     fconfig.buffercache_size = 0;
+    fconfig.seqtree_opt = FDB_SEQTREE_USE; // enable seqtree since get_byseq
 
     // open db
     fdb_open(&dbfile, "./iterator_test1", &fconfig);
@@ -2437,6 +2440,7 @@ void reverse_sequence_iterator_test()
     fdb_config fconfig = fdb_get_default_config();
     fdb_kvs_config kvs_config = fdb_get_default_kvs_config();
     fconfig.buffercache_size = 0;
+    fconfig.seqtree_opt = FDB_SEQTREE_USE; // enable seqtree since get_byseq
     fconfig.wal_threshold = 1024;
     fconfig.flags = FDB_OPEN_FLAG_CREATE;
     fconfig.compaction_threshold = 0;
@@ -2596,6 +2600,7 @@ void reverse_sequence_iterator_kvs_test()
     fdb_config fconfig = fdb_get_default_config();
     fdb_kvs_config kvs_config = fdb_get_default_kvs_config();
     fconfig.buffercache_size = 0;
+    fconfig.seqtree_opt = FDB_SEQTREE_USE; // enable seqtree since get_byseq
     fconfig.wal_threshold = 1024;
     fconfig.flags = FDB_OPEN_FLAG_CREATE;
     fconfig.compaction_threshold = 0;
@@ -2648,7 +2653,9 @@ void reverse_sequence_iterator_kvs_test()
     fdb_commit(dbfile, FDB_COMMIT_NORMAL);
 
     // iterate even docs on kv1
-    fdb_iterator_sequence_init(kv1, &iterator, 0, 0, FDB_ITR_NONE);
+    status = fdb_iterator_sequence_init(kv1, &iterator, 0, 0, FDB_ITR_NONE);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+
     i=0;
     count = 0;
     while (1) {
@@ -2669,7 +2676,7 @@ void reverse_sequence_iterator_kvs_test()
     TEST_CHK(count==n/2);
 
     // iterate all docs over kv2
-    fdb_iterator_sequence_init(kv2, &iterator2, 0, 0, FDB_ITR_NONE);
+    status = fdb_iterator_sequence_init(kv2, &iterator2, 0, 0, FDB_ITR_NONE);
     TEST_CHK(status == FDB_RESULT_SUCCESS);
     while(1) {
         status = fdb_iterator_get(iterator2, &rdoc);
@@ -2732,13 +2739,14 @@ void reverse_sequence_iterator_kvs_test()
     // re-open iterator after commit should return all docs for kv1
     i = 0;
     count = 0;
-    fdb_iterator_sequence_init(kv1, &iterator, 0, 0, FDB_ITR_NONE);
+    status = fdb_iterator_sequence_init(kv1, &iterator, 0, 0, FDB_ITR_NONE);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
     while (1) {
         status = fdb_iterator_get(iterator, &rdoc);
         TEST_CHK(status == FDB_RESULT_SUCCESS);
-        TEST_CHK(!memcmp(rdoc->key, doc[i]->key, rdoc->keylen));
-        TEST_CHK(!memcmp(rdoc->meta, doc[i]->meta, rdoc->metalen));
-        TEST_CHK(!memcmp(rdoc->body, doc[i]->body, rdoc->bodylen));
+        TEST_CMP(rdoc->key, doc[i]->key, rdoc->keylen);
+        TEST_CMP(rdoc->meta, doc[i]->meta, rdoc->metalen);
+        TEST_CMP(rdoc->body, doc[i]->body, rdoc->bodylen);
         fdb_doc_free(rdoc);
         rdoc = NULL;
         if (i == 8) {
@@ -3205,7 +3213,7 @@ void iterator_after_wal_threshold()
     memleak_start();
 
     int i, r;
-    int n = 600;
+    int n = 6;
     char keybuf[256], bodybuf[256];
     fdb_file_handle *dbfile;
     fdb_kvs_handle *db, *db2;
@@ -3214,8 +3222,9 @@ void iterator_after_wal_threshold()
     fdb_iterator *it;
     fdb_config fconfig = fdb_get_default_config();
     fdb_kvs_config kvs_config = fdb_get_default_kvs_config();
-    fconfig.wal_threshold = 1024;
+    fconfig.wal_threshold = 10;
     fconfig.flags = FDB_OPEN_FLAG_CREATE;
+    fconfig.seqtree_opt = FDB_SEQTREE_USE; // enable seqtree since get_byseq
 
     // remove previous iterator_test files
     r = system(SHELL_DEL" iterator_test* > errorlog.txt");
@@ -3413,6 +3422,7 @@ void sequence_iterator_seek_test(bool multi_kv)
     fdb_kvs_config kvs_config = fdb_get_default_kvs_config();
     fconfig.buffercache_size = 0;
     fconfig.wal_threshold = 1024;
+    fconfig.seqtree_opt = FDB_SEQTREE_USE; // enable seqtree since get_byseq
     fconfig.flags = FDB_OPEN_FLAG_CREATE;
     fconfig.multi_kv_instances = multi_kv;
     fconfig.compaction_threshold = 0;
@@ -3554,6 +3564,7 @@ void iterator_concurrent_compaction()
     size_t valuelen_out;
 
     fconfig.wal_threshold = 1024;
+    fconfig.seqtree_opt = FDB_SEQTREE_USE; // enable seqtree since get_byseq
     fconfig.flags = FDB_OPEN_FLAG_CREATE;
 
     // remove previous iterator_test files
@@ -3854,6 +3865,153 @@ void iterator_deleted_doc_right_before_the_end_test()
     TEST_RESULT("iterator deleted doc right before the end of iteration test");
 }
 
+void iterator_uncommited_seeks()
+{
+    TEST_INIT();
+
+    int r;
+
+    fdb_status status;
+    fdb_kvs_handle *db;
+    fdb_file_handle *dbfile;
+    fdb_iterator *it;
+    fdb_doc *rdoc;
+    rdoc=NULL;
+
+    memleak_start();
+
+    fdb_config fconfig = fdb_get_default_config();
+    fdb_kvs_config kvs_config = fdb_get_default_kvs_config();
+
+    r = system(SHELL_DEL" iterator_test* > errorlog.txt");
+    (void)r;
+    TEST_STATUS(fdb_open(&dbfile, "./iterator_test1", &fconfig));
+    TEST_STATUS(fdb_kvs_open_default(dbfile, &db, &kvs_config));
+
+    fdb_set_kv(db, "a", 1, NULL, 0);
+    fdb_set_kv(db, "b", 1, NULL, 0);
+    fdb_set_kv(db, "c", 1, NULL, 0);
+
+    status = fdb_iterator_init(db, &it, "b", 1, NULL, 0, FDB_ITR_NONE);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+    // to 'b'
+    status = fdb_iterator_seek_to_min(it);
+    TEST_STATUS(status);
+    status = fdb_iterator_get(it, &rdoc);
+    TEST_STATUS(status);
+    TEST_CMP(rdoc->key, "b", 1);
+    fdb_doc_free(rdoc);
+    rdoc=NULL;
+
+    // to 'c'
+    status = fdb_iterator_seek_to_max(it);
+    TEST_STATUS(status);
+    status = fdb_iterator_get(it, &rdoc);
+    TEST_STATUS(status);
+    TEST_CMP(rdoc->key, "c", 1);
+    fdb_doc_free(rdoc);
+    rdoc=NULL;
+
+    // to 'b'
+    status = fdb_iterator_prev(it);
+    TEST_STATUS(status);
+    status = fdb_iterator_get(it, &rdoc);
+    TEST_STATUS(status);
+    TEST_CMP(rdoc->key, "b", 1);
+    fdb_doc_free(rdoc);
+    rdoc=NULL;
+
+    // to 'c'
+    status = fdb_iterator_next(it);
+    TEST_STATUS(status);
+    status = fdb_iterator_get(it, &rdoc);
+    TEST_STATUS(status);
+    TEST_CMP(rdoc->key, "c", 1);
+    fdb_doc_free(rdoc);
+    rdoc=NULL;
+
+    fdb_iterator_close(it);
+
+    fdb_close(dbfile);
+    fdb_shutdown();
+    memleak_end();
+    TEST_RESULT("iterator single doc range");
+}
+
+void iterator_init_using_substring_test()
+{
+    // MB-18712
+    TEST_INIT();
+    memleak_start();
+
+    int i, r;
+    fdb_file_handle *dbfile;
+    fdb_kvs_handle *db;
+    fdb_iterator *fit;
+    fdb_doc *rdoc;
+    fdb_config config;
+    fdb_kvs_config kvs_config;
+    fdb_status s; (void)s;
+    char valuebuf[256], cmd[256];
+
+    config = fdb_get_default_config();
+    config.buffercache_size = 0;
+    kvs_config = fdb_get_default_kvs_config();
+
+    sprintf(cmd, SHELL_DEL " %s*", "./iterator_test");
+    r = system(cmd); (void)r;
+
+    s = fdb_open(&dbfile, "./iterator_test1", &config);
+    TEST_CHK(s == FDB_RESULT_SUCCESS);
+
+    s = fdb_kvs_open(dbfile, &db, NULL, &kvs_config);
+    TEST_CHK(s == FDB_RESULT_SUCCESS);
+
+    uint8_t key1[] = {0x73, 0x37, 0x35, 0x34, 0x36, 0x32, 0x34, 0xff, 0x00, 0x00, 0x00};
+    uint8_t key2[] = {0x73, 0x37, 0x35, 0x34, 0x36, 0x32, 0x34, 0xff, 0x00, 0x00, 0x01};
+    // skey is a substring of key1
+    uint8_t skey[] = {0x73, 0x37, 0x35, 0x34, 0x36, 0x32, 0x34, 0xff};
+    uint8_t ekey[] = {0x73, 0x37, 0x35, 0x34, 0x36, 0x32, 0x34, 0xff, 0xff};
+
+    sprintf(valuebuf, "key1");
+    s = fdb_set_kv(db, key1, 11, valuebuf, 4);
+    TEST_CHK(s == FDB_RESULT_SUCCESS);
+
+    sprintf(valuebuf, "key2");
+    s = fdb_set_kv(db, key2, 11, valuebuf, 4);
+    TEST_CHK(s == FDB_RESULT_SUCCESS);
+
+    s = fdb_commit(dbfile, FDB_COMMIT_MANUAL_WAL_FLUSH);
+    TEST_CHK(s == FDB_RESULT_SUCCESS);
+
+    s = fdb_iterator_init(db, &fit, skey, 8, ekey, 9,
+                          FDB_ITR_NO_DELETES | FDB_ITR_SKIP_MAX_KEY);
+    TEST_CHK(s == FDB_RESULT_SUCCESS);
+
+    i = 0;
+    do {
+        rdoc = NULL;
+        s = fdb_iterator_get(fit, &rdoc);
+        if (s != FDB_RESULT_SUCCESS) break;
+        i++;
+        fdb_doc_free(rdoc);
+    } while (fdb_iterator_next(fit) == FDB_RESULT_SUCCESS);
+    TEST_CHK(i == 2);
+
+    s = fdb_iterator_close(fit);
+    TEST_CHK(s == FDB_RESULT_SUCCESS);
+
+    s = fdb_close(dbfile);
+    TEST_CHK(s == FDB_RESULT_SUCCESS);
+    s = fdb_shutdown();
+    TEST_CHK(s == FDB_RESULT_SUCCESS);
+
+    memleak_end();
+
+    TEST_RESULT("iterator init using substring test");
+}
+
 int main(){
     int i, j;
 
@@ -3881,11 +4039,12 @@ int main(){
     iterator_seek_wal_only_test();
     iterator_after_wal_threshold();
     iterator_manual_wal_flush();
-    sequence_iterator_seek_test(false);
     sequence_iterator_seek_test(true);
+    sequence_iterator_seek_test(false);
     iterator_concurrent_compaction();
     iterator_offset_access_test();
     iterator_deleted_doc_right_before_the_end_test();
-
+    iterator_uncommited_seeks();
+    iterator_init_using_substring_test();
     return 0;
 }

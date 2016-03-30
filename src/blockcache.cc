@@ -265,7 +265,8 @@ struct fnamedic_item *_bcache_get_victim()
      }
      for (size_t i = 0; i < num_attempts && num_files; ++i) {
          victim_idx = rand() % num_files;
-         victim_timestamp = atomic_get_uint64_t(&file_list[victim_idx]->access_timestamp);
+         victim_timestamp = atomic_get_uint64_t(&file_list[victim_idx]->access_timestamp,
+                                                std::memory_order_relaxed);
          if (victim_timestamp < min_timestamp &&
              atomic_get_uint64_t(&file_list[victim_idx]->nitems)) {
              min_timestamp = victim_timestamp;
@@ -554,13 +555,14 @@ static fdb_status _flush_dirty_blocks(struct fnamedic_item *fname_item,
 #endif
             if (o_direct) {
                 if (count > 0 && !consecutive_blocks) {
-                    size_t bytes_written;
+                    int64_t bytes_written;
                     // Note that this path can be only executed in flush_all case.
-                    bytes_written = (size_t)filemgr_write_blocks(fname_item->curfile,
-                                                                 buf, count, start_bid);
-                    if (bytes_written != count * bcache_blocksize) {
+                    bytes_written = filemgr_write_blocks(fname_item->curfile,
+                                                         buf, count, start_bid);
+                    if ((uint64_t)bytes_written != count * bcache_blocksize) {
                         count = 0;
-                        status = FDB_RESULT_WRITE_FAIL;
+                        status = bytes_written < 0 ?
+                            (fdb_status) bytes_written : FDB_RESULT_WRITE_FAIL;
                         break;
                     }
                     // Start a new batch again.
@@ -579,7 +581,7 @@ static fdb_status _flush_dirty_blocks(struct fnamedic_item *fname_item,
                         !(sync && o_direct)) {
                         spin_unlock(&fname_item->shards[shard_num].lock);
                     }
-                    status = FDB_RESULT_WRITE_FAIL;
+                    status = ret < 0 ? (fdb_status) ret : FDB_RESULT_WRITE_FAIL;
                     break;
                 }
             }
@@ -617,7 +619,7 @@ static fdb_status _flush_dirty_blocks(struct fnamedic_item *fname_item,
                     ret = filemgr_write_blocks(fname_item->curfile, buf, count, start_bid);
                     if ((size_t)ret != count * bcache_blocksize) {
                         count = 0;
-                        status = FDB_RESULT_WRITE_FAIL;
+                        status = ret < 0 ? (fdb_status) ret : FDB_RESULT_WRITE_FAIL;
                         break;
                     }
                     count = 0;
@@ -635,7 +637,7 @@ static fdb_status _flush_dirty_blocks(struct fnamedic_item *fname_item,
         if (count > 0) {
             ret = filemgr_write_blocks(fname_item->curfile, buf, count, start_bid);
             if ((size_t)ret != count * bcache_blocksize) {
-                status = FDB_RESULT_WRITE_FAIL;
+                status = ret < 0 ? (fdb_status) ret : FDB_RESULT_WRITE_FAIL;
             }
         }
         _release_all_shard_locks(fname_item);
@@ -674,7 +676,7 @@ static struct list_elem * _bcache_evict(struct fnamedic_item *curfile)
     }
     fdb_assert(victim, victim, NULL);
 
-    atomic_incr_uint64_t(&victim->nvictim);
+    atomic_incr_uint64_t(&victim->nvictim, std::memory_order_relaxed);
 
     // select the clean blocks from the victim file
     n_evict = 0;
@@ -870,11 +872,6 @@ static void _fname_free(struct fnamedic_item *fname)
 
     free(fname->shards);
     free(fname->filename);
-    atomic_destroy_uint32_t(&fname->ref_count);
-    atomic_destroy_uint64_t(&fname->nvictim);
-    atomic_destroy_uint64_t(&fname->nitems);
-    atomic_destroy_uint64_t(&fname->nimmutable);
-    atomic_destroy_uint64_t(&fname->access_timestamp);
     free(fname);
 }
 
@@ -916,7 +913,8 @@ int bcache_read(struct filemgr *file, bid_t bid, void *buf)
                                  // getting the timestamp to avoid the overhead of
                                  // gettimeofday()
         atomic_store_uint64_t(&fname->access_timestamp,
-                              (uint64_t) (tp.tv_sec * 1000000 + tp.tv_usec));
+                              (uint64_t) (tp.tv_sec * 1000000 + tp.tv_usec),
+                              std::memory_order_relaxed);
 
         size_t shard_num = bid % fname->num_shards;
         spin_lock(&fname->shards[shard_num].lock);
@@ -980,7 +978,8 @@ bool bcache_invalidate_block(struct filemgr *file, bid_t bid)
         struct timeval tp;
         gettimeofday(&tp, NULL);
         atomic_store_uint64_t(&fname->access_timestamp,
-                              (uint64_t) (tp.tv_sec * 1000000 + tp.tv_usec));
+                              (uint64_t) (tp.tv_sec * 1000000 + tp.tv_usec),
+                              std::memory_order_relaxed);
 
         size_t shard_num = bid % fname->num_shards;
         spin_lock(&fname->shards[shard_num].lock);
@@ -1049,7 +1048,8 @@ int bcache_write(struct filemgr *file,
     struct timeval tp;
     gettimeofday(&tp, NULL);
     atomic_store_uint64_t(&fname_new->access_timestamp,
-                          (uint64_t) (tp.tv_sec * 1000000 + tp.tv_usec));
+                          (uint64_t) (tp.tv_sec * 1000000 + tp.tv_usec),
+                          std::memory_order_relaxed);
 
     size_t shard_num = bid % fname_new->num_shards;
     // set query
@@ -1171,7 +1171,8 @@ int bcache_write_partial(struct filemgr *file,
     struct timeval tp;
     gettimeofday(&tp, NULL);
     atomic_store_uint64_t(&fname_new->access_timestamp,
-                          (uint64_t) (tp.tv_sec * 1000000 + tp.tv_usec));
+                          (uint64_t) (tp.tv_sec * 1000000 + tp.tv_usec),
+                          std::memory_order_relaxed);
 
     size_t shard_num = bid % fname_new->num_shards;
     // set query
@@ -1563,10 +1564,6 @@ INLINE void _bcache_free_fnamedic(struct hash_elem *h)
     free(item->shards);
     free(item->filename);
 
-    atomic_destroy_uint32_t(&item->ref_count);
-    atomic_destroy_uint64_t(&item->nvictim);
-    atomic_destroy_uint64_t(&item->nitems);
-    atomic_destroy_uint64_t(&item->access_timestamp);
     free(item);
 }
 // LCOV_EXCL_STOP

@@ -50,9 +50,14 @@ void basic_test()
     r = system(SHELL_DEL" dummy* > errorlog.txt");
     (void)r;
 
+    // Get the ForestDB version
+    const char *version = fdb_get_lib_version();
+    TEST_CHK(version != NULL && strlen(version) > 0);
+
     fdb_config fconfig = fdb_get_default_config();
     fdb_kvs_config kvs_config = fdb_get_default_kvs_config();
     fconfig.wal_threshold = 1024;
+    fconfig.seqtree_opt = FDB_SEQTREE_USE; // enable seqtree since get_byseq
     fconfig.compaction_threshold = 0;
     fconfig.purging_interval = 1;
 
@@ -78,6 +83,8 @@ void basic_test()
     status = fdb_open(&dbfile, "./dummy1", &fconfig);
     TEST_CHK(status == FDB_RESULT_SUCCESS);
     TEST_CHK(!strcmp(fdb_error_msg(status), "success"));
+    const char *file_version = fdb_get_file_version(dbfile);
+    TEST_CHK(file_version != NULL && strlen(file_version) > 0);
     fdb_close(dbfile);
 
     // reopen db
@@ -276,6 +283,38 @@ void basic_test()
     TEST_RESULT("basic test");
 }
 
+void init_test()
+{
+    TEST_INIT();
+    memleak_start();
+
+    int r;
+    fdb_status status;
+    fdb_file_handle *dbfile;
+    fdb_kvs_handle *db;
+    fdb_config fconfig = fdb_get_default_config();
+    fdb_kvs_config kvs_config = fdb_get_default_kvs_config();
+
+    r = system(SHELL_DEL" dummy* > errorlog.txt");
+    (void)r;
+
+    status = fdb_init(&fconfig);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+    status = fdb_open(&dbfile, "./dummy1", &fconfig);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+    status = fdb_kvs_open_default(dbfile, &db, &kvs_config);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+    status = fdb_close(dbfile);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+    status = fdb_shutdown();
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+    memleak_end();
+    TEST_RESULT("init test");
+}
+
 void set_get_max_keylen()
 {
     TEST_INIT();
@@ -402,6 +441,81 @@ void config_test()
     TEST_RESULT("forestdb config test");
 }
 
+void delete_reopen_test()
+{
+    TEST_INIT();
+    memleak_start();
+
+    int r;
+    fdb_file_handle *fh;
+    fdb_kvs_handle *db;
+    fdb_status status;
+    fdb_config fconfig;
+
+    r = system(SHELL_DEL " dummy* > errorlog.txt");
+    (void)r;
+
+    fconfig = fdb_get_default_config();
+    fconfig.buffercache_size = 0;
+    fconfig.num_compactor_threads = 1;
+    status = fdb_open(&fh, "./dummy3", &fconfig);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+    status = fdb_kvs_open_default(fh, &db, NULL);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+    status = fdb_begin_transaction(fh, FDB_ISOLATION_READ_COMMITTED);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+    status = fdb_set_kv(db, (void *) "foo", 3, (void *)"value", 5);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+    status = fdb_end_transaction(fh, FDB_COMMIT_NORMAL);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+    void *value;
+    size_t valueSize;
+    status = fdb_get_kv(db, (void*)"foo", 3, &value, &valueSize);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+    TEST_CHK(valueSize == 5);
+    TEST_CMP(value, "value", 5);
+    fdb_free_block(value);
+
+    status = fdb_begin_transaction(fh, FDB_ISOLATION_READ_COMMITTED);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+    status = fdb_del_kv(db, "foo", 3);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+    status = fdb_end_transaction(fh, FDB_COMMIT_NORMAL);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+    status = fdb_get_kv(db, "foo", 3, &value, &valueSize);
+    TEST_CHK(status == FDB_RESULT_KEY_NOT_FOUND);
+
+    status = fdb_close(fh);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+    // Reopen:
+    status = fdb_open(&fh, "./dummy3", &fconfig);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+    status = fdb_kvs_open_default(fh, &db, NULL);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+    status = fdb_get_kv(db, "foo", 3, &value, &valueSize);
+    TEST_CHK(status == FDB_RESULT_KEY_NOT_FOUND);
+
+    status = fdb_close(fh);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+    fdb_shutdown();
+
+    memleak_end();
+    TEST_RESULT("end trans delete & reopen passed");
+}
+
 void deleted_doc_get_api_test()
 {
     TEST_INIT();
@@ -429,6 +543,7 @@ void deleted_doc_get_api_test()
     // open dbfile
     fconfig = fdb_get_default_config();
     fconfig.purging_interval = 1;
+    fconfig.seqtree_opt = FDB_SEQTREE_USE; // enable seqtree since get_byseq
     kvs_config = fdb_get_default_kvs_config();
     status = fdb_open(&dbfile, "./dummy1", &fconfig);
     TEST_CHK(status == FDB_RESULT_SUCCESS);
@@ -696,6 +811,7 @@ void set_get_meta_test()
     fdb_config fconfig = fdb_get_default_config();
     fdb_kvs_config kvs_config = fdb_get_default_kvs_config();
     fconfig.wal_threshold = 1024;
+    fconfig.seqtree_opt = FDB_SEQTREE_USE; // enable seqtree since get_byseq
     fconfig.purging_interval = 1;
     fconfig.flags = FDB_OPEN_FLAG_CREATE;
 
@@ -1429,6 +1545,7 @@ void operational_stats_test(bool multi_kv)
     fdb_kvs_config kvs_config = fdb_get_default_kvs_config();
 
     fconfig.buffercache_size = 0;
+    fconfig.seqtree_opt = FDB_SEQTREE_USE; // enable seqtree since get_byseq
     fconfig.wal_threshold = 1024;
     fconfig.flags = FDB_OPEN_FLAG_CREATE;
     fconfig.compaction_threshold = 0;
@@ -2232,6 +2349,9 @@ void custom_compare_primitive_test()
 
 static int _cmp_variable(void *key1, size_t keylen1, void *key2, size_t keylen2)
 {
+    if (keylen1 < 6 || keylen2 < 6) {
+        return (keylen1 - keylen2);
+    }
     // compare only 3rd~8th bytes (ignore the others)
     return memcmp((uint8_t*)key1+2, (uint8_t*)key2+2, 6);
 }
@@ -2263,6 +2383,7 @@ void custom_compare_variable_test()
 
     fdb_config fconfig = fdb_get_default_config();
     fdb_kvs_config kvs_config = fdb_get_default_kvs_config();
+    fconfig.seqtree_opt = FDB_SEQTREE_USE;
     fconfig.buffercache_size = 0;
     fconfig.wal_threshold = 1024;
     fconfig.flags = FDB_OPEN_FLAG_CREATE;
@@ -2558,6 +2679,7 @@ void custom_seqnum_test(bool multi_kv)
     fconfig.buffercache_size = 0;
     fconfig.wal_threshold = 1024;
     fconfig.flags = FDB_OPEN_FLAG_CREATE;
+    fconfig.seqtree_opt = FDB_SEQTREE_USE; // enable seqtree since get_byseq
     fconfig.compaction_threshold = 0;
     fconfig.multi_kv_instances = multi_kv;
     r = 0;
@@ -4159,10 +4281,246 @@ void rekey_test()
     TEST_RESULT("encryption rekey test");
 }
 
+void invalid_get_byoffset_test()
+{
+    TEST_INIT();
+    memleak_start();
+
+    int r;
+    fdb_file_handle *dbfile;
+    fdb_kvs_handle *db;
+    fdb_doc *rdoc;
+    fdb_status status;
+    fdb_config fconfig;
+    fdb_kvs_config kvs_config;
+    char keybuf[256], bodybuf[256];
+
+    r = system(SHELL_DEL " dummy* > errorlog.txt");
+    (void)r;
+
+    // open dbfile
+    fconfig = fdb_get_default_config();
+    fconfig.purging_interval = 1;
+    fconfig.seqtree_opt = FDB_SEQTREE_USE; // enable seqtree since get_byseq
+    kvs_config = fdb_get_default_kvs_config();
+    status = fdb_open(&dbfile, "./dummy1", &fconfig);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+    status = fdb_kvs_open(dbfile, &db, NULL, &kvs_config);
+    TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+    sprintf(keybuf, "key");
+    sprintf(bodybuf, "body");
+
+    /* Scenario 1: Fetch offset from empty file */
+
+    {
+        // Create a doc
+        fdb_doc_create(&rdoc, keybuf, strlen(keybuf),
+                NULL, 0, bodybuf, strlen(bodybuf));
+        status = fdb_set(db, rdoc);
+        TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+        // close db file
+        fdb_kvs_close(db);
+        fdb_close(dbfile);
+
+        // open new dbfile
+        status = fdb_open(&dbfile, "./dummy1", &fconfig);
+        TEST_CHK(status == FDB_RESULT_SUCCESS);
+        status = fdb_kvs_open(dbfile, &db, NULL, &kvs_config);
+        TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+        // attempt to get key by previous offset,
+        // should fail as doc wasn't commited
+        status = fdb_get_byoffset(db, rdoc);
+        TEST_CHK(status == FDB_RESULT_KEY_NOT_FOUND);
+
+        fdb_doc_free(rdoc);
+    }
+
+    /* Scenario 2: Fetch invalid offset that points to a different data block
+       from same file */
+
+    {
+        // Create a doc
+        fdb_doc_create(&rdoc, keybuf, strlen(keybuf),
+                NULL, 0, bodybuf, strlen(bodybuf));
+        status = fdb_set(db, rdoc);
+        TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+        // Write 10 additional documents
+        fdb_doc **doc = alca(fdb_doc*, 10);
+        int i;
+        for (i = 0; i < 10; ++i) {
+            sprintf(keybuf, "key%d", i+1);
+            sprintf(bodybuf, "val%d", i+1);
+            fdb_doc_create(&doc[i], (void*)keybuf, strlen(keybuf),
+                           NULL, 0, (void*)bodybuf, strlen(bodybuf));
+            fdb_set(db, doc[i]);
+        }
+        uint64_t last_offset = doc[i-1]->offset;
+
+        // Commit the doc so it goes into main index
+        status = fdb_commit(dbfile, FDB_COMMIT_MANUAL_WAL_FLUSH);
+        TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+        // Free all the additional documents
+        for (i = 0; i < 10; ++i) {
+            fdb_doc_free(doc[i]);
+        }
+
+        // Incorrectly set rdoc's offset to the last saved doc's offset
+        rdoc->offset = last_offset;
+
+        // attempt to get key by incorrect offset belonging to a different
+        // data block
+        status = fdb_get_byoffset(db, rdoc);
+        TEST_CHK(status == FDB_RESULT_KEY_NOT_FOUND);
+
+        fdb_doc_free(rdoc);
+    }
+
+    /* Scenario 3: Fetch old offset from compacted file */
+
+    {
+        // Create doc
+        fdb_doc_create(&rdoc, keybuf, strlen(keybuf),
+                NULL, 0, bodybuf, strlen(bodybuf));
+        status = fdb_set(db, rdoc);
+        TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+        // Delete the doc
+        status = fdb_del(db, rdoc);
+        TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+        fdb_doc_free(rdoc);
+        sprintf(keybuf, "key0");
+        sprintf(bodybuf, "body0");
+
+        // Create doc again
+        fdb_doc_create(&rdoc, keybuf, strlen(keybuf),
+                       NULL, 0, bodybuf, strlen(bodybuf));
+        status = fdb_set(db, rdoc);
+        TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+        // Commit the doc so it goes into main index
+        status = fdb_commit(dbfile, FDB_COMMIT_MANUAL_WAL_FLUSH);
+        TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+        // Compact file
+        fdb_compact(dbfile, "./dummy2");
+
+        // close db file
+        fdb_kvs_close(db);
+        fdb_close(dbfile);
+
+        // open new dbfile
+        status = fdb_open(&dbfile, "./dummy2", &fconfig);
+        TEST_CHK(status == FDB_RESULT_SUCCESS);
+        status = fdb_kvs_open(dbfile, &db, NULL, &kvs_config);
+        TEST_CHK(status == FDB_RESULT_SUCCESS);
+
+        // attempt to get key by incorrect offset belonging to different file
+        status = fdb_get_byoffset(db, rdoc);
+        TEST_CHK(status == FDB_RESULT_READ_FAIL);
+    }
+
+    /* Scenario 4: Fetch invalid offset that points to an index block
+       on same file */
+
+    {
+        uint8_t buf[4096];
+        FILE* fd = fopen("./dummy2", "r");
+        int64_t offset = 0;
+#if !defined(WIN32) && !defined(_WIN32)
+        while (pread(fileno(fd), buf, 4096, offset) == 4096) {
+            if (buf[4095] == BLK_MARKER_BNODE) {
+                // This means this block was an index block
+                // (last byte of the block is 0xff)
+                break;
+            }
+            offset += 4096;
+        }
+        fclose(fd);
+#else
+        DWORD bytesread;
+        OVERLAPPED winoffs;
+        memset(&winoffs, 0, sizeof(winoffs));
+        winoffs.Offset = offset & 0xFFFFFFFF;
+        winoffs.OffsetHigh = ((uint64_t)offset >> 32) & 0x7FFFFFFF;
+        while (ReadFile(fd, buf, 4096, &bytesread, &winoffs)) {
+            if (buf[4095] == BLK_MARKER_BNODE) {
+                // This means this block was an index block
+                // (last byte of the block is 0xff)
+                break;
+            }
+            offset += 4096;
+        }
+        fclose(fd);
+#endif
+
+        // Set doc's offset to that of the index block
+        rdoc->offset = offset;
+
+        // attempt to get key by incorrect offset belonging to an index block
+        // (offset points to start of an index block)
+        status = fdb_get_byoffset(db, rdoc);
+        TEST_CHK(status == FDB_RESULT_READ_FAIL);
+
+        // Set doc's offset to a random spot within that index block
+        rdoc->offset = offset + (rand() % 4096);
+
+        // attempt to get key by incorrect offset belonging to an index block
+        // (offset points to somewhere within the index block)
+        status = fdb_get_byoffset(db, rdoc);
+        TEST_CHK(status == FDB_RESULT_READ_FAIL);
+
+        // Free the document
+        fdb_doc_free(rdoc);
+    }
+
+    /* Scenario 5: Fetch invalid offset that points to a transaction commit marker
+       on same file */
+    {
+        size_t i;
+
+        // insert 100 docs using transaction
+        status = fdb_begin_transaction(dbfile, FDB_ISOLATION_READ_COMMITTED);
+        for (i=0;i<100;++i) {
+            sprintf(keybuf, "k%06d", (int)i);
+            sprintf(bodybuf, "v%06d", (int)i);
+            status = fdb_set_kv(db, keybuf, 8, bodybuf, 8);
+        }
+        status = fdb_end_transaction(dbfile, FDB_COMMIT_NORMAL);
+
+        // try to retrieve all possible offsets
+        for (i=0;i<100000;++i) {
+            sprintf(keybuf, "k%06d", (int)i);
+            status = fdb_doc_create(&rdoc, NULL, 0 , NULL, 0, NULL, 0);
+            rdoc->offset = i;
+            status = fdb_get_byoffset(db, rdoc);
+            status = fdb_doc_free(rdoc);
+        }
+    }
+
+    // close db file
+    fdb_kvs_close(db);
+    fdb_close(dbfile);
+
+    // free all resources
+    fdb_shutdown();
+
+    memleak_end();
+
+    TEST_RESULT("invalid get by-offset test");
+}
+
 int main(){
     basic_test();
+    init_test();
     set_get_max_keylen();
     config_test();
+    delete_reopen_test();
     deleted_doc_get_api_test();
     deleted_doc_stat_test();
     complete_delete_test();
@@ -4199,15 +4557,16 @@ int main(){
     auto_commit_test();
     last_wal_flush_header_test();
     long_key_test();
-    large_batch_write_no_commit_test();
     multi_thread_client_shutdown(NULL);
     multi_thread_kvs_client(NULL);
-    purge_logically_deleted_doc_test();
     operational_stats_test(false);
     operational_stats_test(true);
-    multi_thread_test(40*1024, 1024, 20, 1, 100, 2, 6);
     open_multi_files_kvs_test();
     rekey_test();
+    invalid_get_byoffset_test();
+    purge_logically_deleted_doc_test();
+    large_batch_write_no_commit_test();
+    multi_thread_test(40*1024, 1024, 20, 1, 100, 2, 6);
 
     return 0;
 }

@@ -30,7 +30,6 @@
 #include "wal.h"
 #include "hbtrie.h"
 #include "btreeblock.h"
-#include "snapshot.h"
 #include "version.h"
 #include "staleblock.h"
 
@@ -627,7 +626,7 @@ void fdb_kvs_header_copy(fdb_kvs_handle *handle,
         _fdb_kvs_header_create(&kv_header);
         // read from 'handle->dhandle', and import into 'new_file'
         fdb_kvs_header_read(kv_header, handle->dhandle,
-                            handle->kv_info_offset, ver_get_latest_magic(), false);
+                            handle->kv_info_offset, handle->file->version, false);
 
         // write KV header in 'new_file' using 'new_dhandle'
         uint64_t new_kv_info_offset;
@@ -838,7 +837,7 @@ void _fdb_kvs_header_import(struct kvs_header *kv_header,
     kv_header->id_counter = id_counter;
 
     // Version control
-    if (!ver_is_atleast_v2(version)) {
+    if (!ver_is_atleast_magic_001(version)) {
         is_deltasize = false;
         _deltasize = 0;
         _ndeletes = 0;
@@ -938,7 +937,7 @@ fdb_status _fdb_kvs_get_snap_info(void *data, uint64_t version,
     bool is_deltasize;
     fdb_seqnum_t _seqnum;
     // Version control
-    if (!ver_is_atleast_v2(version)) {
+    if (!ver_is_atleast_magic_001(version)) {
         is_deltasize = false;
     } else {
         is_deltasize = true;
@@ -1009,7 +1008,7 @@ uint64_t _kvs_stat_get_sum_attr(void *data, uint64_t version,
     int64_t deltasize;
 
     // Version control
-    if (!ver_is_atleast_v2(version)) {
+    if (!ver_is_atleast_magic_001(version)) {
         is_deltasize = false;
     } else {
         is_deltasize = true;
@@ -1101,9 +1100,11 @@ uint64_t fdb_kvs_header_append(fdb_kvs_handle *handle)
     free(data);
 
     if (prev_offset != BLK_NOT_FOUND) {
-        doc_len = docio_read_doc_length(handle->dhandle, prev_offset);
-        // mark stale
-        filemgr_mark_stale(handle->file, prev_offset, _fdb_get_docsize(doc_len));
+        if (docio_read_doc_length(handle->dhandle, &doc_len, prev_offset)
+            == FDB_RESULT_SUCCESS) {
+            // mark stale
+            filemgr_mark_stale(handle->file, prev_offset, _fdb_get_docsize(doc_len));
+        }
     }
 
     return kv_info_offset;
@@ -1115,14 +1116,14 @@ void fdb_kvs_header_read(struct kvs_header *kv_header,
                          uint64_t version,
                          bool only_seq_nums)
 {
-    uint64_t offset;
+    int64_t offset;
     struct docio_object doc;
 
     memset(&doc, 0, sizeof(struct docio_object));
     offset = docio_read_doc(dhandle, kv_info_offset, &doc, true);
 
-    if (offset == kv_info_offset) {
-        fdb_log(dhandle->log_callback, FDB_RESULT_READ_FAIL,
+    if (offset <= 0) {
+        fdb_log(dhandle->log_callback, (fdb_status) offset,
                 "Failed to read a KV header with the offset %" _F64 " from a "
                 "database file '%s'", kv_info_offset, dhandle->file->filename);
         return;
@@ -1131,41 +1132,6 @@ void fdb_kvs_header_read(struct kvs_header *kv_header,
     _fdb_kvs_header_import(kv_header, doc.body, doc.length.bodylen,
                            version, only_seq_nums);
     free_docio_object(&doc, 1, 1, 1);
-}
-
-fdb_seqnum_t _fdb_kvs_get_seqnum(struct kvs_header *kv_header,
-                                 fdb_kvs_id_t id)
-{
-    fdb_seqnum_t seqnum;
-    struct kvs_node query, *node;
-    struct avl_node *a;
-
-    spin_lock(&kv_header->lock);
-    query.id = id;
-    a = avl_search(kv_header->idx_id, &query.avl_id, _kvs_cmp_id);
-    if (a) {
-        node = _get_entry(a, struct kvs_node, avl_id);
-        seqnum = node->seqnum;
-    } else {
-        // not existing KV ID.
-        // this is necessary for _fdb_restore_wal()
-        // not to restore documents in deleted KV store.
-        seqnum = 0;
-    }
-    spin_unlock(&kv_header->lock);
-
-    return seqnum;
-}
-
-fdb_seqnum_t fdb_kvs_get_seqnum(struct filemgr *file,
-                                fdb_kvs_id_t id)
-{
-    if (id == 0) {
-        // default KV instance
-        return filemgr_get_seqnum(file);
-    }
-
-    return _fdb_kvs_get_seqnum(file->kv_header, id);
 }
 
 fdb_seqnum_t fdb_kvs_get_committed_seqnum(fdb_kvs_handle *handle)
@@ -1204,7 +1170,7 @@ fdb_seqnum_t fdb_kvs_get_committed_seqnum(fdb_kvs_handle *handle)
                          &kv_info_offset, &dummy64,
                          &compacted_filename, NULL);
 
-        uint64_t doc_offset;
+        int64_t doc_offset;
         struct kvs_header *kv_header;
         struct docio_object doc;
 
@@ -1213,7 +1179,7 @@ fdb_seqnum_t fdb_kvs_get_committed_seqnum(fdb_kvs_handle *handle)
         doc_offset = docio_read_doc(handle->dhandle,
                                     kv_info_offset, &doc, true);
 
-        if (doc_offset == kv_info_offset) {
+        if (doc_offset <= 0) {
             // fail
             _fdb_kvs_header_free(kv_header);
             return 0;
@@ -1435,25 +1401,18 @@ fdb_kvs_create_start:
         spin_unlock(&kv_header_new->lock);
     }
 
-    // sync dirty root nodes
-    bid_t dirty_idtree_root, dirty_seqtree_root;
-    filemgr_get_dirty_root(root_handle->file, &dirty_idtree_root, &dirty_seqtree_root);
-    if (dirty_idtree_root != BLK_NOT_FOUND) {
-        root_handle->trie->root_bid = dirty_idtree_root;
-    }
-    if (root_handle->config.seqtree_opt == FDB_SEQTREE_USE &&
-        dirty_seqtree_root != BLK_NOT_FOUND) {
-        if (root_handle->kvs) {
-            root_handle->seqtrie->root_bid = dirty_seqtree_root;
-        } else {
-            btree_init_from_bid(root_handle->seqtree,
-                                root_handle->seqtree->blk_handle,
-                                root_handle->seqtree->blk_ops,
-                                root_handle->seqtree->kv_ops,
-                                root_handle->seqtree->blksize,
-                                dirty_seqtree_root);
-        }
-    }
+    // since this function calls filemgr_commit() and appends a new DB header,
+    // we should finalize & flush the previous dirty update before commit.
+    bid_t dirty_idtree_root = BLK_NOT_FOUND;
+    bid_t dirty_seqtree_root = BLK_NOT_FOUND;
+    struct filemgr_dirty_update_node *prev_node = NULL;
+    struct filemgr_dirty_update_node *new_node = NULL;
+
+    _fdb_dirty_update_ready(root_handle, &prev_node, &new_node,
+                            &dirty_idtree_root, &dirty_seqtree_root, false);
+
+    _fdb_dirty_update_finalize(root_handle, prev_node, new_node,
+                               &dirty_idtree_root, &dirty_seqtree_root, true);
 
     // append system doc
     root_handle->kv_info_offset = fdb_kvs_header_append(root_handle);
@@ -2047,27 +2006,14 @@ fdb_kvs_remove_start:
     }
 
     // discard all WAL entries
-    wal_close_kv_ins(file, kv_id);
+    wal_close_kv_ins(file, kv_id, &root_handle->log_callback);
 
-    // sync dirty root nodes
-    bid_t dirty_idtree_root, dirty_seqtree_root;
-    filemgr_get_dirty_root(root_handle->file, &dirty_idtree_root, &dirty_seqtree_root);
-    if (dirty_idtree_root != BLK_NOT_FOUND) {
-        root_handle->trie->root_bid = dirty_idtree_root;
-    }
-    if (root_handle->config.seqtree_opt == FDB_SEQTREE_USE &&
-        dirty_seqtree_root != BLK_NOT_FOUND) {
-        if (root_handle->kvs) {
-            root_handle->seqtrie->root_bid = dirty_seqtree_root;
-        } else {
-            btree_init_from_bid(root_handle->seqtree,
-                                root_handle->seqtree->blk_handle,
-                                root_handle->seqtree->blk_ops,
-                                root_handle->seqtree->kv_ops,
-                                root_handle->seqtree->blksize,
-                                dirty_seqtree_root);
-        }
-    }
+    bid_t dirty_idtree_root = BLK_NOT_FOUND;
+    bid_t dirty_seqtree_root = BLK_NOT_FOUND;
+    struct filemgr_dirty_update_node *prev_node = NULL, *new_node = NULL;
+
+    _fdb_dirty_update_ready(root_handle, &prev_node, &new_node,
+                            &dirty_idtree_root, &dirty_seqtree_root, false);
 
     size_id = sizeof(fdb_kvs_id_t);
     size_chunk = root_handle->trie->chunksize;
@@ -2084,6 +2030,9 @@ fdb_kvs_remove_start:
         hbtrie_remove_partial(root_handle->seqtrie, _kv_id, size_id);
         btreeblk_end(root_handle->bhandle);
     }
+
+    _fdb_dirty_update_finalize(root_handle, prev_node, new_node,
+                               &dirty_idtree_root, &dirty_seqtree_root, true);
 
     // append system doc
     root_handle->kv_info_offset = fdb_kvs_header_append(root_handle);
@@ -2150,11 +2099,6 @@ fdb_status fdb_kvs_rollback(fdb_kvs_handle **handle_ptr, fdb_seqnum_t seqnum)
     fhandle = handle_in->fhandle;
     config = handle_in->config;
     kvs_config = handle_in->kvs_config;
-
-    // Sequence trees are a must for rollback
-    if (handle_in->config.seqtree_opt != FDB_SEQTREE_USE) {
-        return FDB_RESULT_INVALID_CONFIG;
-    }
 
     if (handle_in->config.flags & FDB_OPEN_FLAG_RDONLY) {
         return fdb_log(&handle_in->log_callback,
@@ -2264,21 +2208,23 @@ fdb_status fdb_kvs_rollback(fdb_kvs_handle **handle_ptr, fdb_seqnum_t seqnum)
         }
         btreeblk_end(super_handle->bhandle);
 
-        // same as above for seq-trie
-        _kv_id = alca(uint8_t, size_id);
-        kvid2buf(size_id, handle->kvs->id, _kv_id);
-        hr = hbtrie_find_partial(handle->seqtrie, _kv_id,
-                                 size_id, &seq_root);
-        btreeblk_end(handle->bhandle);
-        if (hr == HBTRIE_RESULT_SUCCESS) {
-            hbtrie_insert_partial(super_handle->seqtrie,
-                                  _kv_id, size_id,
-                                  &seq_root, &dummy);
-        } else { // No seqtrie info in rollback header.
-                 // Erase kv store from super handle's seqtrie index.
-            hbtrie_remove_partial(super_handle->seqtrie, _kv_id, size_id);
+        if (config.seqtree_opt == FDB_SEQTREE_USE) {
+            // same as above for seq-trie
+            _kv_id = alca(uint8_t, size_id);
+            kvid2buf(size_id, handle->kvs->id, _kv_id);
+            hr = hbtrie_find_partial(handle->seqtrie, _kv_id,
+                                     size_id, &seq_root);
+            btreeblk_end(handle->bhandle);
+            if (hr == HBTRIE_RESULT_SUCCESS) {
+                hbtrie_insert_partial(super_handle->seqtrie,
+                                      _kv_id, size_id,
+                                      &seq_root, &dummy);
+            } else { // No seqtrie info in rollback header.
+                     // Erase kv store from super handle's seqtrie index.
+                hbtrie_remove_partial(super_handle->seqtrie, _kv_id, size_id);
+            }
+            btreeblk_end(super_handle->bhandle);
         }
-        btreeblk_end(super_handle->bhandle);
 
         old_seqnum = fdb_kvs_get_seqnum(handle_in->file,
                                         handle_in->kvs->id);
@@ -2287,7 +2233,7 @@ fdb_status fdb_kvs_rollback(fdb_kvs_handle **handle_ptr, fdb_seqnum_t seqnum)
         handle_in->seqnum = seqnum;
         filemgr_mutex_unlock(handle_in->file);
 
-        fs = _fdb_commit(super_handle, FDB_COMMIT_NORMAL,
+        fs = _fdb_commit(super_handle, FDB_COMMIT_MANUAL_WAL_FLUSH,
                          !(handle_in->config.durability_opt & FDB_DRB_ASYNC));
         if (fs == FDB_RESULT_SUCCESS) {
             _fdb_kvs_close(handle);
@@ -2454,15 +2400,20 @@ fdb_status fdb_get_kvs_ops_info(fdb_kvs_handle *handle, fdb_kvs_ops_info *info)
         root_stat = stat;
     }
 
-    info->num_sets = atomic_get_uint64_t(&stat.num_sets);
-    info->num_dels = atomic_get_uint64_t(&stat.num_dels);
-    info->num_gets = atomic_get_uint64_t(&stat.num_gets);
-    info->num_iterator_gets = atomic_get_uint64_t(&stat.num_iterator_gets);
-    info->num_iterator_gets = atomic_get_uint64_t(&stat.num_iterator_gets);
-    info->num_iterator_moves = atomic_get_uint64_t(&stat.num_iterator_moves);
+    info->num_sets = atomic_get_uint64_t(&stat.num_sets, std::memory_order_relaxed);
+    info->num_dels = atomic_get_uint64_t(&stat.num_dels, std::memory_order_relaxed);
+    info->num_gets = atomic_get_uint64_t(&stat.num_gets, std::memory_order_relaxed);
+    info->num_iterator_gets = atomic_get_uint64_t(&stat.num_iterator_gets,
+                                                  std::memory_order_relaxed);
+    info->num_iterator_gets = atomic_get_uint64_t(&stat.num_iterator_gets,
+                                                  std::memory_order_relaxed);
+    info->num_iterator_moves = atomic_get_uint64_t(&stat.num_iterator_moves,
+                                                   std::memory_order_relaxed);
 
-    info->num_commits = atomic_get_uint64_t(&root_stat.num_commits);
-    info->num_compacts = atomic_get_uint64_t(&root_stat.num_compacts);
+    info->num_commits = atomic_get_uint64_t(&root_stat.num_commits,
+                                            std::memory_order_relaxed);
+    info->num_compacts = atomic_get_uint64_t(&root_stat.num_compacts,
+                                             std::memory_order_relaxed);
     return FDB_RESULT_SUCCESS;
 }
 
@@ -2592,7 +2543,8 @@ stale_header_info fdb_get_smallest_active_header(fdb_kvs_handle *handle)
     spin_unlock(&handle->file->fhandle_idx_lock);
 
     uint64_t num_keeping_headers =
-        atomic_get_uint64_t(&handle->file->config->num_keeping_headers);
+        atomic_get_uint64_t(&handle->file->config->num_keeping_headers,
+                            std::memory_order_relaxed);
     if (num_keeping_headers) {
         // backward scan previous header info to keep more headers
 

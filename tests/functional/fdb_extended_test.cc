@@ -91,6 +91,7 @@ static fdb_encryption_algorithm_t cur_encryption;
 
 static fdb_config getDefaultConfig(void) {
     fdb_config c = fdb_get_default_config();
+    c.seqtree_opt = FDB_SEQTREE_USE; // enable seqtree for get_byseq
     c.encryption_key.algorithm = cur_encryption;
     _set_random_string((char*)c.encryption_key.bytes, sizeof(c.encryption_key.bytes));
     return c;
@@ -102,7 +103,7 @@ static void loadDocsWithRandomKeys(fdb_file_handle *dbfile,
                                    int num_docs) {
     TEST_INIT();
     fdb_status status;
-    char keybuf[1024], metabuf[1024], bodybuf[1024];
+    char keybuf[256], metabuf[256], bodybuf[256];
 
     // insert documents
     for (int i = 0; i < num_docs; ++i){
@@ -127,7 +128,7 @@ static void updateDocsWithRandomKeys(fdb_file_handle *dbfile,
                                      int end_doc) {
     TEST_INIT();
     fdb_status status;
-    char metabuf[1024], bodybuf[1024];
+    char metabuf[256], bodybuf[256];
 
     // insert documents
     for (int i = start_doc; i < end_doc; ++i) {

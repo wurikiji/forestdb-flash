@@ -333,7 +333,8 @@ fdb_status sb_bmp_fetch_doc(fdb_kvs_handle *handle)
 {
     // == read bitmap from system docs ==
     size_t i;
-    uint64_t num_docs, r_offset;
+    uint64_t num_docs;
+    int64_t r_offset;
     char doc_key[64];
     struct superblock *sb = handle->file->sb;
     struct sb_rsv_bmp *rsv = NULL;
@@ -360,11 +361,11 @@ fdb_status sb_bmp_fetch_doc(fdb_kvs_handle *handle)
 
         r_offset = docio_read_doc(handle->dhandle, sb->bmp_doc_offset[i],
                                   &sb->bmp_docs[i], true);
-        if (r_offset == sb->bmp_doc_offset[i]) {
+        if (r_offset <= 0) {
             // read fail
             free(sb->bmp);
             sb->bmp = NULL;
-            return FDB_RESULT_SB_READ_FAIL;
+            return r_offset < 0 ? (fdb_status) r_offset : FDB_RESULT_SB_READ_FAIL;
         }
     }
 
@@ -390,12 +391,12 @@ fdb_status sb_bmp_fetch_doc(fdb_kvs_handle *handle)
 
             r_offset = docio_read_doc(handle->dhandle, rsv->bmp_doc_offset[i],
                                       &rsv->bmp_docs[i], true);
-            if (r_offset == rsv->bmp_doc_offset[i]) {
+            if (r_offset <= 0) {
                 // read fail
                 free(rsv->bmp);
                 free(sb->bmp);
                 rsv->bmp = sb->bmp = NULL;
-                return FDB_RESULT_SB_READ_FAIL;
+                return r_offset < 0 ? (fdb_status) r_offset : FDB_RESULT_SB_READ_FAIL;
             }
         }
 
@@ -471,7 +472,8 @@ sb_decision_t sb_check_block_reusing(fdb_kvs_handle *handle)
     }
 
     uint64_t block_reusing_threshold =
-        atomic_get_uint64_t(&handle->file->config->block_reusing_threshold);
+        atomic_get_uint64_t(&handle->file->config->block_reusing_threshold,
+                            std::memory_order_relaxed);
     if (block_reusing_threshold == 0 || block_reusing_threshold >= 100) {
         // circular block reusing is disabled
         return SBD_NONE;
@@ -486,7 +488,8 @@ sb_decision_t sb_check_block_reusing(fdb_kvs_handle *handle)
     // since the last block reusing
     if (handle->cur_header_revnum <=
         sb->min_live_hdr_revnum +
-        atomic_get_uint64_t(&handle->file->config->num_keeping_headers)) {
+        atomic_get_uint64_t(&handle->file->config->num_keeping_headers,
+                            std::memory_order_relaxed)) {
         return SBD_NONE;
     }
 
@@ -1430,7 +1433,6 @@ static void _rsv_free(struct sb_rsv_bmp *rsv)
     free(rsv->bmp);
     free(rsv->bmp_doc_offset);
     free(rsv->bmp_docs);
-    atomic_destroy_uint32_t(&rsv->status);
 }
 
 static void _sb_free(struct superblock *sb)
@@ -1486,8 +1488,21 @@ fdb_status sb_read_latest(struct filemgr *file,
 {
     size_t i, max_sb_no = sconfig.num_sb;
     uint64_t max_revnum = 0;
+    uint64_t revnum_limit = (uint64_t)0xffffffffffffffff;
     fdb_status fs;
     struct superblock *sb_arr;
+
+    if (file->sb) {
+        // Superblock is already read previously.
+        // This means that there are some problems with the current superblock
+        // so that we have to read another candidate.
+
+        // Note: 'sb->revnum' denotes the revnum of next superblock to be
+        // written, so we need to subtract 1 from it to get the revnum of
+        // the current superblock successfully read from the file.
+        revnum_limit = file->sb->revnum - 1;
+        sb_free(file);
+    }
 
     sb_arr = alca(struct superblock,
                   sconfig.num_sb * sizeof(struct superblock));
@@ -1499,7 +1514,8 @@ fdb_status sb_read_latest(struct filemgr *file,
         _sb_init(&sb_arr[i], sconfig);
         fs = _sb_read_given_no(file, i, &sb_arr[i], log_callback);
         if (fs == FDB_RESULT_SUCCESS &&
-            sb_arr[i].revnum >= max_revnum) {
+            sb_arr[i].revnum >= max_revnum &&
+            sb_arr[i].revnum < revnum_limit) {
             max_sb_no = i;
             max_revnum = sb_arr[i].revnum;
         }

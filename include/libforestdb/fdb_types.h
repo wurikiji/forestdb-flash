@@ -476,6 +476,10 @@ typedef struct {
      * snapshot readers.
      */
     size_t num_keeping_headers;
+    /**
+     * Breakpad crash catcher settings
+     */
+    const char* breakpad_minidump_dir;
 
 
 	/* begin: Added by ogh */
@@ -678,15 +682,24 @@ typedef struct {
  */
 typedef uint8_t fdb_latency_stat_type;
 enum {
-    FDB_LATENCY_SETS      = 0, // fdb_set API
-    FDB_LATENCY_GETS      = 1, // fdb_get API
-    FDB_LATENCY_COMMITS   = 2, // fdb_commit API
-    FDB_LATENCY_SNAPSHOTS = 3, // fdb_snapshot_open API
-    FDB_LATENCY_COMPACTS  = 4  // fdb_compact API
+    FDB_LATENCY_SETS         = 0, // fdb_set API
+    FDB_LATENCY_GETS         = 1, // fdb_get API
+    FDB_LATENCY_COMMITS      = 2, // fdb_commit API
+    FDB_LATENCY_SNAPSHOTS    = 3, // fdb_snapshot_open in-memory API
+    FDB_LATENCY_SNAPSHOT_DUR = 4, // fdb_snapshot_open durable API
+    FDB_LATENCY_COMPACTS     = 5, // fdb_compact API
+    FDB_LATENCY_ITR_INIT     = 6, // fdb_iterator_init API
+    FDB_LATENCY_ITR_SEQ_INIT = 7, // fdb_iterator_sequence_init API
+    FDB_LATENCY_ITR_NEXT     = 8, // fdb_iterator_next API
+    FDB_LATENCY_ITR_PREV     = 9, // fdb_iterator_prev API
+    FDB_LATENCY_ITR_GET      = 10, // fdb_iterator_get API
+    FDB_LATENCY_ITR_GET_META = 11, // fdb_iterator_get_metaonly API
+    FDB_LATENCY_ITR_SEEK     = 12, // fdb_iterator_seek API
+    FDB_LATENCY_ITR_SEEK_MAX = 13, // fdb_iterator_seek_to_max API
+    FDB_LATENCY_ITR_SEEK_MIN = 14, // fdb_iterator_seek_to_min API
+    FDB_LATENCY_ITR_CLOSE    = 15, // fdb_iterator_close API
+    FDB_LATENCY_NUM_STATS    = 16  // Number of stats (keep as highest elem)
 };
-
-// Number of latency stat types
-#define FDB_LATENCY_NUM_STATS 5
 
 /**
  * Latency statistics of a specific ForestDB api call

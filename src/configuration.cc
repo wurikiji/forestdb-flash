@@ -33,14 +33,14 @@ fdb_config get_default_config(void) {
     fconfig.blocksize = FDB_BLOCKSIZE;
     // 128MB by default.
     fconfig.buffercache_size = 134217728;
-    // 4096 WAL entries by default.
+    // 4K WAL entries by default.
     fconfig.wal_threshold = 4096;
     fconfig.wal_flush_before_commit = true;
     fconfig.auto_commit = false;
     // 0 second by default.
     fconfig.purging_interval = 0;
-    // Use a seq btree by default.
-    fconfig.seqtree_opt = FDB_SEQTREE_USE;
+    // Sequnce trees are disabled by default.
+    fconfig.seqtree_opt = FDB_SEQTREE_NOT_USE;
     // Use a synchronous commit by default.
     fconfig.durability_opt = FDB_DRB_NONE;
     fconfig.flags = FDB_OPEN_FLAG_CREATE;
@@ -93,6 +93,9 @@ fdb_config get_default_config(void) {
 
     fconfig.encryption_key.algorithm = FDB_ENCRYPTION_NONE;
     memset(fconfig.encryption_key.bytes, 0, sizeof(fconfig.encryption_key.bytes));
+
+    // Breakpad minidump directory, set to current working dir
+    fconfig.breakpad_minidump_dir = ".";
 
     return fconfig;
 }
