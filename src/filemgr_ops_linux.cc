@@ -23,7 +23,6 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
-#include <linux/fadvise.h>
 
 #include "filemgr.h"
 #include "filemgr_ops.h"
@@ -45,13 +44,18 @@ int _filemgr_linux_open(const char *pathname, int flags, mode_t mode)
 }
 
 #include <time.h>
+#include <linux/fadvise.h>
 #include "timing.h"
 static ts_nsec elapsed_read = 0;
 static ts_nsec elapsed_write = 0;
 static ts_nsec elapsed_sync = 0;
 int streamid = 0; 
+int blocksize = 0;
 
 #include "common.h"
+#ifndef POSIX_FADV_STREAMID
+#define POSIX_FADV_STREAMID 8
+#endif
 ssize_t _filemgr_linux_pwrite(int fd, void *buf, size_t count, cs_off_t offset)
 {
     ssize_t rv;
@@ -64,23 +68,23 @@ ssize_t _filemgr_linux_pwrite(int fd, void *buf, size_t count, cs_off_t offset)
 	ts_nsec start, end;
     start = get_monotonic_ts();
     memcpy(temp, buf, count);
-    if (streamid != 0) {
-        switch ( *(temp + 4095) ) {
+        switch ( *(temp + blocksize - 1) ) {
             case BLK_MARKER_BNODE:
-                posix_fadvise(fd, 0, 4, POSIX_FADV_STREAMID);
+                posix_fadvise(fd, 0, 0, POSIX_FADV_STREAMID);
                 break;
             case BLK_MARKER_DBHEADER:
-                posix_fadvise(fd, 0, 3, POSIX_FADV_STREAMID);
-                break;
-            case BLK_MARKER_SB:
-                posix_fadvise(fd, 0, 2, POSIX_FADV_STREAMID);
+                posix_fadvise(fd, 1, 0, POSIX_FADV_STREAMID);
                 break;
             case BLK_MARKER_DOC:
+                posix_fadvise(fd, 0, 0, POSIX_FADV_STREAMID);
+                break;
+            case BLK_MARKER_SB:
+                posix_fadvise(fd, 1, 0, POSIX_FADV_STREAMID);
+                break;
             default:
-                posix_fadvise(fd, 0, 1, POSIX_FADV_STREAMID);
+                posix_fadvise(fd, 0, 0, POSIX_FADV_STREAMID);
                 break;
         }
-    }
 
     do {
         //rv = pwrite(fd, buf, count, offset);
@@ -538,7 +542,8 @@ int _filemgr_linux_fallocate(int fd,
 int _filemgr_linux_posix_fadvise(int fd, 
 								off_t offset, off_t len, int advice)
 {
-    streamid = len;
+    streamid = offset;
+	blocksize = len;
 	return posix_fadvise(fd, offset, len, advice);
 }
 				

@@ -1010,7 +1010,7 @@ fdb_status btreeblk_operation_end(void *voidhandle)
 #ifdef __BTREEBLK_READ_TREE
             avl_insert(&handle->read_tree, &block->avl, _btreeblk_bid_cmp);
 #endif
-        }else {
+        } else {
             // reserve the block when there is enough space and the block is writable
             e = list_next(e);
         }

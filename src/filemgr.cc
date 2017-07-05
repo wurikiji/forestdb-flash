@@ -729,7 +729,7 @@ static fdb_status _filemgr_load_sb(struct filemgr *file,
 #define F_BLOCK_SIZE ((uint64_t)1024 * 1024)
 #define F_ALLOC_SIZE ((uint64_t)F_BLOCK_NUM * F_BLOCK_SIZE)
 
-int filemgr_set_streamid(struct filemgr *file, int streamid);
+int filemgr_set_streamid(struct filemgr *file, int streamid, int blocksize);
 
 filemgr_open_result filemgr_open(char *filename, struct filemgr_ops *ops,
                                  struct filemgr_config *config,
@@ -1059,7 +1059,7 @@ filemgr_open_result filemgr_open(char *filename, struct filemgr_ops *ops,
     result.file = file;
     result.rv = FDB_RESULT_SUCCESS;
 
-	filemgr_set_streamid(file, config->streamid);
+	filemgr_set_streamid(file, config->streamid, config->blocksize);
     return result;
 }
 
@@ -1775,11 +1775,14 @@ fdb_status filemgr_shutdown()
 }
 
 
-int filemgr_set_streamid(struct filemgr *file, int streamid)
+#ifndef POSIX_FADV_STREAMID
+#define POSIX_FADV_STREAMID 8
+#endif
+int filemgr_set_streamid(struct filemgr *file, int streamid, int blocksize)
 {
 	printf("Use stream: %d\n", streamid);
-	return file->ops->posix_fadvise(file->fd, 0, 
-							streamid, POSIX_FADV_STREAMID);
+	return file->ops->posix_fadvise(file->fd, streamid, 
+							blocksize, POSIX_FADV_STREAMID);
 }
 // GB block
 
