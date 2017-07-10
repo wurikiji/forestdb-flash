@@ -23,6 +23,8 @@
 #include <stdarg.h>
 #include <sys/mman.h>
 #include <linux/fadvise.h>
+#include <sys/ioctl.h>
+#include <linux/fs.h>
 #if !defined(WIN32) && !defined(_WIN32)
 #include <sys/time.h>
 #endif
@@ -695,6 +697,16 @@ void filemgr_prefetch(struct filemgr *file,
     spin_unlock(&file->lock);
 }
 
+/* [[ogh : fitrim */
+fdb_status filemgr_fitrim_file(struct filemgr *file, 
+								err_log_callback *log_callback)
+{
+	struct fstrim_range fsr;
+	fsr.start = 0;
+	fsr.len = 0;
+	return (fdb_status)ioctl(file->fd, FITRIM, &fsr);
+}
+/* ]]ogh : fitrim */
 fdb_status filemgr_does_file_exist(char *filename) {
     struct filemgr_ops *ops = get_filemgr_ops();
     int fd = ops->open(filename, O_RDONLY, 0444);
