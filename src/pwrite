@@ -1,0 +1,377 @@
+btree.cc:            btree->kv_ops->get_data_size(node, new_minkey, key_arr, value_arr, len) +
+btree.cc:            btree->kv_ops->get_data_size(node, new_minkey, key_arr, value_arr, len);
+btree.cc:    if (btree->kv_ops->init_kv_var) {
+btree.cc:        btree->kv_ops->init_kv_var(btree, item->key, item->value);
+btree.cc:        btree->kv_ops->set_key(btree, item->key, key);
+btree.cc:        btree->kv_ops->set_value(btree, item->value, value);
+btree.cc:    nodesize = btree->blk_ops->blk_get_size(btree->blk_handle, bid);
+btree.cc:    nodesize = btree->blk_ops->blk_get_size(btree->blk_handle, bid);
+btree.cc:    addr = btree->blk_ops->blk_read(btree->blk_handle, btree->root_bid);
+btree.cc:    addr = btree->blk_ops->blk_read(btree->blk_handle, btree->root_bid);
+btree.cc:                btree->kv_ops->get_data_size(node, NULL, NULL, NULL, 0));
+btree.cc:            memmove(ptr, node->data, btree->kv_ops->get_data_size(node,
+btree.cc:    if (!btree->blk_ops->blk_is_writable(btree->blk_handle, btree->root_bid)) {
+btree.cc:        btree->blk_ops->blk_move(btree->blk_handle, btree->root_bid,
+btree.cc:        btree->blk_ops->blk_set_dirty(btree->blk_handle, btree->root_bid);
+btree.cc:    addr = btree->blk_ops->blk_read(btree->blk_handle, btree->root_bid);
+btree.cc:    if (btree->blk_ops->blk_alloc_sub && btree->blk_ops->blk_enlarge_node) {
+btree.cc:        addr = btree->blk_ops->blk_alloc_sub(btree->blk_handle, &btree->root_bid);
+btree.cc:            subblock_size = btree->blk_ops->blk_get_size(btree->blk_handle,
+btree.cc:                addr = btree->blk_ops->blk_enlarge_node(btree->blk_handle,
+btree.cc:        addr = btree->blk_ops->blk_alloc (btree->blk_handle, &btree->root_bid);
+btree.cc:    if (btree->kv_ops->init_kv_var) btree->kv_ops->init_kv_var(btree, k, NULL);
+btree.cc:        btree->kv_ops->get_kv(node, 0, k, NULL);
+btree.cc:        if (btree->kv_ops->cmp(key, k, btree->aux) < 0) {
+btree.cc:            if (btree->kv_ops->free_kv_var) btree->kv_ops->free_kv_var(btree, k, NULL);
+btree.cc:        btree->kv_ops->get_kv(node, end-1, k, NULL);
+btree.cc:        if (btree->kv_ops->cmp(key, k, btree->aux) >= 0) {
+btree.cc:            if (btree->kv_ops->free_kv_var) btree->kv_ops->free_kv_var(btree, k, NULL);
+btree.cc:            btree->kv_ops->get_kv(node, middle, k, NULL);
+btree.cc:            cmp = btree->kv_ops->cmp(key, k, btree->aux);
+btree.cc:                    if (btree->kv_ops->free_kv_var) btree->kv_ops->free_kv_var(btree, k, NULL);
+btree.cc:        if (btree->kv_ops->free_kv_var) btree->kv_ops->free_kv_var(btree, k, NULL);
+btree.cc:    if (btree->kv_ops->free_kv_var) btree->kv_ops->free_kv_var(btree, k, NULL);
+btree.cc:    if (btree->kv_ops->init_kv_var) btree->kv_ops->init_kv_var(btree, k, NULL);
+btree.cc:            btree->kv_ops->get_kv(node, idx, k, NULL);
+btree.cc:            if (!btree->kv_ops->cmp(key, k, btree->aux)) {
+btree.cc:                btree->kv_ops->set_kv(node, idx, key, value);
+btree.cc:                if (btree->kv_ops->free_kv_var) btree->kv_ops->free_kv_var(btree, k, NULL);
+btree.cc:            btree->kv_ops->ins_kv(node, idx_insert, key, value);
+btree.cc:            btree->kv_ops->set_kv(node, idx_insert, key, value);
+btree.cc:        btree->kv_ops->set_kv(node, idx_insert, key, value);
+btree.cc:    if (btree->kv_ops->free_kv_var) btree->kv_ops->free_kv_var(btree, k, NULL);
+btree.cc:        btree->kv_ops->ins_kv(node, idx, NULL, NULL);
+btree.cc:    if (btree->kv_ops->init_kv_var) btree->kv_ops->init_kv_var(btree, k, v);
+btree.cc:    addr = btree->blk_ops->blk_read(btree->blk_handle, bid);
+btree.cc:        btree->kv_ops->get_kv(node, i, k, v);
+btree.cc:        _bid = btree->kv_ops->value2bid(v);
+btree.cc:            btree->kv_ops->get_kv(node, i, k, v);
+btree.cc:            _bid = btree->kv_ops->value2bid(v);
+btree.cc:    if (btree->kv_ops->free_kv_var) btree->kv_ops->free_kv_var(btree, k, v);
+btree.cc:    if (btree->kv_ops->init_kv_var) btree->kv_ops->init_kv_var(btree, k, v);
+btree.cc:    addr = btree->blk_ops->blk_read(btree->blk_handle, btree->root_bid);
+btree.cc:        btree->kv_ops->get_kv(root, ((num+0) * root->nentry / den)-0, key_begin, NULL);
+btree.cc:        btree->kv_ops->get_kv(root, ((num+1) * root->nentry / den)-1, key_end, NULL);
+btree.cc:        btree->kv_ops->get_kv(root, idx_begin, k, v);
+btree.cc:        bid = btree->kv_ops->value2bid(v);
+btree.cc:        addr = btree->blk_ops->blk_read(btree->blk_handle, bid);
+btree.cc:        btree->kv_ops->get_kv(node, idx, key_begin, NULL);
+btree.cc:            btree->kv_ops->get_kv(root, idx_end, k, v);
+btree.cc:            bid = btree->kv_ops->value2bid(v);
+btree.cc:            addr = btree->blk_ops->blk_read(btree->blk_handle, bid);
+btree.cc:        btree->kv_ops->get_kv(node, idx, key_end, NULL);
+btree.cc:    if (btree->kv_ops->free_kv_var) btree->kv_ops->free_kv_var(btree, k, v);
+btree.cc:    if (btree->kv_ops->init_kv_var) btree->kv_ops->init_kv_var(btree, k, v);
+btree.cc:        addr = btree->blk_ops->blk_read(btree->blk_handle, bid[i]);
+btree.cc:            if (btree->blk_ops->blk_operation_end)
+btree.cc:                btree->blk_ops->blk_operation_end(btree->blk_handle);
+btree.cc:            if (btree->kv_ops->free_kv_var) btree->kv_ops->free_kv_var(btree, k, v);
+btree.cc:        btree->kv_ops->get_kv(node[i], idx[i], k, v);
+btree.cc:            bid[i-1] = btree->kv_ops->value2bid(v);
+btree.cc:            if (!btree->kv_ops->cmp(key, k, btree->aux)) {
+btree.cc:                btree->kv_ops->set_value(btree, value_buf, v);
+btree.cc:                if (btree->blk_ops->blk_operation_end)
+btree.cc:                    btree->blk_ops->blk_operation_end(btree->blk_handle);
+btree.cc:                if (btree->kv_ops->free_kv_var) {
+btree.cc:                    btree->kv_ops->free_kv_var(btree, k, v);
+btree.cc:    if (btree->blk_ops->blk_operation_end) {
+btree.cc:        btree->blk_ops->blk_operation_end(btree->blk_handle);
+btree.cc:    if (btree->kv_ops->free_kv_var) btree->kv_ops->free_kv_var(btree, k, v);
+btree.cc:        addr = btree->blk_ops->blk_alloc(btree->blk_handle, &new_bid[j]);
+btree.cc:        btree->kv_ops->get_nth_idx(node[i], j, nnode, &split_idx[j]);
+btree.cc:        btree->kv_ops->copy_kv(new_node[j], node[i], 0, split_idx[j],
+btree.cc:    btree->kv_ops->copy_kv(new_node[j], node[i], 0, split_idx[j], nentry[j]);
+btree.cc:                btree->kv_ops->get_kv(new_node[j], 0, k, v);
+btree.cc:                if (btree->kv_ops->cmp(kv_item->key, k, btree->aux) < 0) {
+btree.cc:        btree->kv_ops->get_kv(new_node[0], idx[i], k, v);
+btree.cc:        btree->kv_ops->set_kv(new_node[0], idx[i], key, v);
+btree.cc:            btree->kv_ops->get_nth_splitter(new_node[j-1], new_node[j],
+btree.cc:        addr = btree->blk_ops->blk_alloc(btree->blk_handle, &new_root_bid);
+btree.cc:        if (!btree->blk_ops->blk_is_writable(btree->blk_handle, bid[i])) {
+btree.cc:            addr = btree->blk_ops->blk_move(btree->blk_handle, bid[i], &bid[i]);
+btree.cc:            btree->blk_ops->blk_set_dirty(btree->blk_handle, bid[i]);
+btree.cc:        btree->kv_ops->get_kv(node[i], 0, k, v);
+btree.cc:        _btree_add_entry(btree, new_root, k, btree->kv_ops->bid2value(&_bid));
+btree.cc:            //btree->kv_ops->get_kv(new_node[j], 0, k, v);
+btree.cc:            btree->kv_ops->get_nth_splitter(new_node[j-1], new_node[j], k);
+btree.cc:                             btree->kv_ops->bid2value(&_bid));
+btree.cc:    addr = btree->blk_ops->blk_move(btree->blk_handle, bid[i], &bid[i]);
+btree.cc:    if (btree->kv_ops->init_kv_var) {
+btree.cc:        btree->kv_ops->init_kv_var(btree, k, v);
+btree.cc:        addr = btree->blk_ops->blk_read(btree->blk_handle, bid[i]);
+btree.cc:            btree->kv_ops->get_kv(node[i], idx[i], k, v);
+btree.cc:            bid[i-1] = btree->kv_ops->value2bid(v);
+btree.cc:            btree->kv_ops->get_kv(node[i], idx[i], k, NULL);
+btree.cc:            if (idx[i] == 0 && btree->kv_ops->cmp(key, k, btree->aux) < 0) {
+btree.cc:                btree->kv_ops->set_kv(node[i], idx[i], k,
+btree.cc:                                      btree->kv_ops->bid2value(&_bid));
+btree.cc:                     !btree->kv_ops->cmp(kv_item->key, k, btree->aux));
+btree.cc:                    btree->kv_ops->get_kv(node[i], idx[i], k, v);
+btree.cc:                    btree->kv_ops->set_kv(node[i], idx[i], key, v);
+btree.cc:                if (btree->blk_ops->blk_enlarge_node &&
+btree.cc:                    addr = btree->blk_ops->blk_enlarge_node(btree->blk_handle,
+btree.cc:            if (!btree->blk_ops->blk_is_writable(btree->blk_handle, bid[i])) {
+btree.cc:                btree->blk_ops->blk_set_dirty(btree->blk_handle, bid[i]);
+btree.cc:    if (btree->blk_ops->blk_operation_end) {
+btree.cc:        btree->blk_ops->blk_operation_end(btree->blk_handle);
+btree.cc:    if (btree->kv_ops->free_kv_var) btree->kv_ops->free_kv_var(btree, k, v);
+btree.cc:            if (btree->kv_ops->free_kv_var) {
+btree.cc:                btree->kv_ops->free_kv_var(btree, kv_item->key, kv_item->value);
+btree.cc:    if (btree->kv_ops->init_kv_var) {
+btree.cc:        btree->kv_ops->init_kv_var(btree, k, v);
+btree.cc:        btree->kv_ops->init_kv_var(btree, kk, vv);
+btree.cc:        addr = btree->blk_ops->blk_read(btree->blk_handle, bid[i]);
+btree.cc:            if (btree->blk_ops->blk_operation_end)
+btree.cc:                btree->blk_ops->blk_operation_end(btree->blk_handle);
+btree.cc:            if (btree->kv_ops->free_kv_var) {
+btree.cc:                btree->kv_ops->free_kv_var(btree, k, v);
+btree.cc:                btree->kv_ops->free_kv_var(btree, kk, vv);
+btree.cc:        btree->kv_ops->get_kv(node[i], idx[i], k, v);
+btree.cc:            bid[i-1] = btree->kv_ops->value2bid(v);
+btree.cc:            btree->kv_ops->get_kv(node[i], idx[i], k, v);
+btree.cc:                btree->kv_ops->get_kv(node[i-1], 0, kk, vv);
+btree.cc:                if (btree->kv_ops->cmp(kk, k, btree->aux)) {
+btree.cc:                    btree->kv_ops->set_kv(node[i], idx[i], kk, v);
+btree.cc:                    btree->kv_ops->set_key(btree, k, kk);
+btree.cc:                btree->kv_ops->set_kv(node[i], idx[i], k,
+btree.cc:                                      btree->kv_ops->bid2value(&_bid));
+btree.cc:            btree->kv_ops->get_kv(node[i], idx[i], k, v);
+btree.cc:                btree->blk_ops->blk_remove(btree->blk_handle, bid[i]);
+btree.cc:                    btree->kv_ops->get_kv(node[i], 0, k, v);
+btree.cc:                    child_bid = btree->kv_ops->value2bid(v);
+btree.cc:                    addr = btree->blk_ops->blk_read(btree->blk_handle, child_bid);
+btree.cc:                    nodesize = btree->blk_ops->blk_get_size(btree->blk_handle, child_bid);
+btree.cc:                    new_rootsize += btree->kv_ops->get_data_size(child, NULL, NULL, NULL, 0);
+btree.cc:                        addr = btree->blk_ops->blk_alloc(btree->blk_handle,
+btree.cc:                        btree->kv_ops->copy_kv(new_root, child, 0, 0, child->nentry);
+btree.cc:                        btree->blk_ops->blk_remove(btree->blk_handle, child_bid);
+btree.cc:            if (!btree->blk_ops->blk_is_writable(btree->blk_handle, bid[i])) {
+btree.cc:                addr = btree->blk_ops->blk_move(btree->blk_handle, bid[i],
+btree.cc:                btree->blk_ops->blk_set_dirty(btree->blk_handle, bid[i]);
+btree.cc:    if (btree->blk_ops->blk_operation_end) {
+btree.cc:        btree->blk_ops->blk_operation_end(btree->blk_handle);
+btree.cc:    if (btree->kv_ops->free_kv_var) {
+btree.cc:        btree->kv_ops->free_kv_var(btree, k, v);
+btree.cc:        btree->kv_ops->free_kv_var(btree, kk, vv);
+btree.cc:    if (btree->blk_ops->blk_operation_end) {
+btree.cc:        btree->blk_ops->blk_operation_end(btree->blk_handle);
+btree.cc:    if (btree->kv_ops->init_kv_var) {
+btree.cc:        btree->kv_ops->init_kv_var(btree, it->curkey, NULL);
+btree.cc:        btree->kv_ops->set_key(btree, it->curkey, initial_key);
+btree.cc:        // replaced by kv_ops->init_kv_var
+btree.cc:    if (it->btree.kv_ops->free_kv_var) {
+btree.cc:        it->btree.kv_ops->free_kv_var(&it->btree, it->curkey, NULL);
+btree.cc:    if (it->btree.kv_ops->init_kv_var) {
+btree.cc:        it->btree.kv_ops->init_kv_var(&it->btree, k, v);
+btree.cc:        addr = btree->blk_ops->blk_read(btree->blk_handle, it->bid[depth]);
+btree.cc:        blksize = btree->blk_ops->blk_get_size(btree->blk_handle,
+btree.cc:        if (it->btree.kv_ops->free_kv_var) {
+btree.cc:            it->btree.kv_ops->free_kv_var(&it->btree, k, v);
+btree.cc:        btree->kv_ops->get_kv(node, it->idx[depth], key_buf, value_buf);
+btree.cc:        if (btree->kv_ops->cmp(it->curkey, key_buf, btree->aux) < 0 &&
+btree.cc:        if (it->btree.kv_ops->free_kv_var) {
+btree.cc:            it->btree.kv_ops->free_kv_var(&it->btree, k, v);
+btree.cc:            btree->kv_ops->get_kv(node, it->idx[depth], k, v);
+btree.cc:            it->bid[depth-1] = btree->kv_ops->value2bid(v);
+btree.cc:                if (it->btree.kv_ops->free_kv_var) {
+btree.cc:                    it->btree.kv_ops->free_kv_var(&it->btree, k, v);
+btree.cc:                btree->kv_ops->get_kv(node, it->idx[depth], k, v);
+btree.cc:                it->bid[depth-1] = btree->kv_ops->value2bid(v);
+btree.cc:        if (it->btree.kv_ops->free_kv_var) {
+btree.cc:            it->btree.kv_ops->free_kv_var(&it->btree, k, v);
+btree.cc:        btree->kv_ops->get_kv(node, it->idx[depth], key_buf, value_buf);
+btree.cc:        btree->kv_ops->set_key(btree, it->curkey, key_buf);
+btree.cc:        if (it->btree.kv_ops->free_kv_var) {
+btree.cc:            it->btree.kv_ops->free_kv_var(&it->btree, k, v);
+btree.cc:    if (it->btree.kv_ops->init_kv_var) {
+btree.cc:        it->btree.kv_ops->init_kv_var(&it->btree, k, v);
+btree.cc:        addr = btree->blk_ops->blk_read(btree->blk_handle, it->bid[depth]);
+btree.cc:        blksize = btree->blk_ops->blk_get_size(btree->blk_handle,
+btree.cc:        if (it->btree.kv_ops->free_kv_var) it->btree.kv_ops->free_kv_var(
+btree.cc:        btree->kv_ops->get_kv(node, it->idx[depth], key_buf, value_buf);
+btree.cc:        if (btree->kv_ops->cmp(it->curkey, key_buf, btree->aux) > 0 &&
+btree.cc:        if (it->btree.kv_ops->free_kv_var) {
+btree.cc:            it->btree.kv_ops->free_kv_var(&it->btree, k, v);
+btree.cc:            btree->kv_ops->get_kv(node, it->idx[depth], k, v);
+btree.cc:            it->bid[depth-1] = btree->kv_ops->value2bid(v);
+btree.cc:                if (it->btree.kv_ops->free_kv_var) {
+btree.cc:                    it->btree.kv_ops->free_kv_var(&it->btree, k, v);
+btree.cc:                btree->kv_ops->get_kv(node, it->idx[depth], k, v);
+btree.cc:                it->bid[depth-1] = btree->kv_ops->value2bid(v);
+btree.cc:        if (it->btree.kv_ops->free_kv_var) {
+btree.cc:            it->btree.kv_ops->free_kv_var(&it->btree, k, v);
+btree.cc:        btree->kv_ops->get_kv(node, it->idx[depth], key_buf, value_buf);
+btree.cc:        btree->kv_ops->set_key(btree, it->curkey, key_buf);
+btree.cc:        if (it->btree.kv_ops->free_kv_var) {
+btree.cc:            it->btree.kv_ops->free_kv_var(&it->btree, k, v);
+btree_str_kv.cc:    btree_kv_ops->get_kv = _get_str_kv;
+btree_str_kv.cc:    btree_kv_ops->set_kv = _set_str_kv;
+btree_str_kv.cc:    btree_kv_ops->ins_kv = _ins_str_kv;
+btree_str_kv.cc:    btree_kv_ops->copy_kv = _copy_str_kv;
+btree_str_kv.cc:    btree_kv_ops->set_key = _set_str_key;
+btree_str_kv.cc:    btree_kv_ops->set_value = _set_str_value;
+btree_str_kv.cc:    btree_kv_ops->get_data_size = _get_str_data_size;
+btree_str_kv.cc:    btree_kv_ops->get_kv_size = _get_str_kv_size;
+btree_str_kv.cc:    btree_kv_ops->init_kv_var = _init_str_kv_var;
+btree_str_kv.cc:    btree_kv_ops->free_kv_var = _free_str_kv_var;
+btree_str_kv.cc:    btree_kv_ops->get_nth_idx = _get_str_nth_idx;
+btree_str_kv.cc:    btree_kv_ops->get_nth_splitter = _get_str_nth_splitter;
+btree_str_kv.cc:    btree_kv_ops->cmp = _cmp_str64;
+btree_str_kv.cc:    btree_kv_ops->bid2value = _str_bid_to_value_64;
+btree_str_kv.cc:    btree_kv_ops->value2bid = _str_value_to_bid_64;
+superblock.cc:    r = file->ops->pwrite(file->fd, buf, real_blocksize, sb_no * real_blocksize);
+superblock.cc:        file->ops->get_errno_str(errno_msg, 512);
+superblock.cc:    r = file->ops->pread(file->fd, buf, real_blocksize, sb_no * real_blocksize);
+superblock.cc:        file->ops->get_errno_str(errno_msg, 512);
+encryption.cc:    return e->ops->setup(e);
+encryption.cc:    return e->ops->crypt(e, false, buf, buf, blocksize, bid);
+encryption.cc:        status = e->ops->crypt(e,
+hbtrie.cc:    trie->btree_leaf_kv_ops->cmp = cmp;
+hbtrie.cc:            if (item->btree_it.btree.kv_ops->cmp(k, chunk,
+hbtrie.cc:            bid = trie->btree_kv_ops->value2bid(v);
+hbtrie.cc:                        chunkcmp = trie->btree_kv_ops->cmp(
+hbtrie.cc:                offset = trie->btree_kv_ops->value2bid(hbmeta.value);
+hbtrie.cc:            offset = trie->btree_kv_ops->value2bid(v);
+hbtrie.cc:            if (item->btree_it.btree.kv_ops->cmp(k, chunk,
+hbtrie.cc:            bid = trie->btree_kv_ops->value2bid(v);
+hbtrie.cc:                        chunkcmp = trie->btree_kv_ops->cmp(
+hbtrie.cc:                offset = trie->btree_kv_ops->value2bid(hbmeta.value);
+hbtrie.cc:            offset = trie->btree_kv_ops->value2bid(v);
+hbtrie.cc:                bid_new = trie->btree_kv_ops->value2bid(btree_value);
+hbtrie.cc:                offset = trie->btree_kv_ops->value2bid(btree_value);
+hbtrie.cc:            bid_new = trie->btree_kv_ops->value2bid(btree_value);
+hbtrie.cc:        offset = trie->btree_kv_ops->value2bid(btree_value);
+hbtrie.cc:                if (trie->btree_leaf_kv_ops->cmp(k, k_doc, trie->aux) == 0) {
+btree_fast_str_kv.cc:    btree_kv_ops->get_kv = _get_fast_str_kv;
+btree_fast_str_kv.cc:    btree_kv_ops->set_kv = _set_fast_str_kv;
+btree_fast_str_kv.cc:    btree_kv_ops->ins_kv = _ins_fast_str_kv;
+btree_fast_str_kv.cc:    btree_kv_ops->copy_kv = _copy_fast_str_kv;
+btree_fast_str_kv.cc:    btree_kv_ops->set_key = _set_fast_str_key;
+btree_fast_str_kv.cc:    btree_kv_ops->set_value = _set_fast_str_value;
+btree_fast_str_kv.cc:    btree_kv_ops->get_data_size = _get_fast_str_data_size;
+btree_fast_str_kv.cc:    btree_kv_ops->get_kv_size = _get_fast_str_kv_size;
+btree_fast_str_kv.cc:    btree_kv_ops->init_kv_var = _init_fast_str_kv_var;
+btree_fast_str_kv.cc:    btree_kv_ops->free_kv_var = _free_fast_str_kv_var;
+btree_fast_str_kv.cc:    btree_kv_ops->get_nth_idx = _get_fast_str_nth_idx;
+btree_fast_str_kv.cc:    btree_kv_ops->get_nth_splitter = _get_fast_str_nth_splitter;
+btree_fast_str_kv.cc:    btree_kv_ops->cmp = _cmp_fast_str64;
+btree_fast_str_kv.cc:    btree_kv_ops->bid2value = _fast_str_bid_to_value_64;
+btree_fast_str_kv.cc:    btree_kv_ops->value2bid = _fast_str_value_to_bid_64;
+docio.cc:    int num_sub = handle->file->ops->aio_submit(aio_handle, size);
+docio.cc:        handle->file->ops->get_errno_str(errno_msg, 512);
+docio.cc:        handle->file->ops->get_errno_str(errno_msg, 512);
+docio.cc:        num_events = handle->file->ops->aio_getevents(aio_handle, 1,
+docio.cc:            handle->file->ops->get_errno_str(errno_msg, 512);
+docio.cc:                handle->file->ops->aio_prep_read(aio_handle, aio_size,
+compactor.cc:                ret = elem->file->ops->close(elem->file->fd);
+compactor.cc:                    elem->file->ops->get_errno_str(errno_msg, 512);
+compactor.cc:    fd_meta = ops->open(metafile, O_RDONLY, 0644);
+compactor.cc:        ret = ops->pread(fd_meta, buf, sizeof(struct compactor_meta), 0);
+compactor.cc:            ops->get_errno_str(errno_msg, 512);
+compactor.cc:            ret = ops->close(fd_meta);
+compactor.cc:                ops->get_errno_str(errno_msg, 512);
+compactor.cc:        ops->close(fd_meta);
+compactor.cc:        fd_db = ops->open(fullpath, O_RDONLY, 0644);
+compactor.cc:        ops->close(fd_db);
+compactor.cc:    fd_meta = ops->open(metafile, O_RDWR | O_CREAT, 0644);
+compactor.cc:        ret = ops->pwrite(fd_meta, &meta, sizeof(struct compactor_meta), 0);
+compactor.cc:            ops->get_errno_str(errno_msg, 512);
+compactor.cc:            ops->close(fd_meta);
+compactor.cc:        ret = ops->fsync(fd_meta);
+compactor.cc:            ops->get_errno_str(errno_msg, 512);
+compactor.cc:            ops->close(fd_meta);
+compactor.cc:        ops->close(fd_meta);
+compactor.cc:        fd = ops->open(filename, O_RDONLY, 0644);
+compactor.cc:            ops->close(fd);
+compactor.cc:        fd = ops->open(path, O_RDONLY, 0644);
+compactor.cc:            ops->close(fd);
+forestdb.cc:            seq_kv_ops->cmp = _cmp_uint64_t_endian_safe;
+forestdb.cc:            seq_kv_ops->cmp = _cmp_uint64_t_endian_safe;
+forestdb.cc:        stale_kv_ops->cmp = _cmp_uint64_t_endian_safe;
+forestdb.cc:    if (handle->file->ops->aio_init(&aio_handle) == FDB_RESULT_SUCCESS) {
+forestdb.cc:    if (handle->file->ops->aio_init(&aio_handle) == FDB_RESULT_SUCCESS) {
+forestdb.cc:        handle->file->ops->aio_destroy(aio_handle_ptr);
+forestdb.cc:            seq_kv_ops->cmp = _cmp_uint64_t_endian_safe;
+forestdb.cc:        stale_kv_ops->cmp = _cmp_uint64_t_endian_safe;
+forestdb.cc:            stale_kv_ops->cmp = _cmp_uint64_t_endian_safe;
+filemgr.cc:        ops->get_errno_str(errno_msg, 512);
+filemgr.cc:    ssize_t result = file->ops->pread(file->fd, buf, file->blocksize, file->blocksize*bid);
+filemgr.cc:        return file->ops->pwrite(file->fd, buf, nbytes, offset);
+filemgr.cc:        return file->ops->pwrite(file->fd, encrypted_buf, nbytes, offset);
+filemgr.cc:    int fd = ops->open(filename, O_RDONLY, 0444);
+filemgr.cc:    ops->close(fd);
+filemgr.cc:            file->fd = file->ops->open(file->filename, file_flag, 0666);
+filemgr.cc:    fd = ops->open(filename, file_flag, 0666);
+filemgr.cc:        ops->close(fd);
+filemgr.cc:    cs_off_t offset = file->ops->goto_eof(file->fd);
+filemgr.cc:        file->ops->close(file->fd);
+filemgr.cc:            file->ops->close(file->fd);
+filemgr.cc:            file->ops->close(file->fd);
+filemgr.cc:                rv = file->ops->close(file->fd);
+filemgr.cc:            rv = file->ops->close(file->fd);
+filemgr.cc:	return file->ops->posix_fadvise(file->fd, streamid, 
+filemgr.cc:		file->ops->posix_fallocate(file->fd, 
+filemgr.cc:        ssize_t rv = file->ops->pwrite(file->fd, &_buf, 1,
+filemgr.cc:		file->ops->posix_fallocate(file->fd, 
+filemgr.cc:        ssize_t rv = file->ops->pwrite(file->fd, &_buf, 1,
+filemgr.cc:			file->ops->posix_fallocate(file->fd, 
+filemgr.cc:            ssize_t rv = file->ops->pwrite(file->fd, &_buf, 1,
+filemgr.cc:                uint64_t cur_file_pos = file->ops->goto_eof(file->fd);
+filemgr.cc:        r = file->ops->pwrite(file->fd, buf, len, pos);
+filemgr.cc:			result = file->ops->fdatasync(file->fd);
+filemgr.cc:			result = file->ops->fsync(file->fd);
+filemgr.cc:			rv = file->ops->fdatasync(file->fd);
+filemgr.cc:        	rv = file->ops->fsync(file->fd);
+filemgr.cc:    fdb_status fs = (fdb_status)dst_file->ops->copy_file_range(
+filemgr.cc:        file->fd = file->ops->open(file->filename, O_RDWR, 0666);
+filemgr.cc:            cs_off_t offset = file->ops->goto_eof(file->fd);
+filemgr.cc:                    file->ops->close(file->fd);
+filemgr.cc:                    file->ops->close(file->fd);
+filemgr.cc:                file->ops->close(file->fd);
+filemgr.cc:    src->fs_type = src->ops->get_fs_type(src->fd);
+filemgr.cc:    dst->fs_type = dst->ops->get_fs_type(dst->fd);
+btree_kv.cc:    btree_kv_ops->get_kv = _get_kv;
+btree_kv.cc:    btree_kv_ops->set_kv = _set_kv;
+btree_kv.cc:    btree_kv_ops->ins_kv = _ins_kv;
+btree_kv.cc:    btree_kv_ops->copy_kv = _copy_kv;
+btree_kv.cc:    btree_kv_ops->set_key = _set_key;
+btree_kv.cc:    btree_kv_ops->set_value = _set_value;
+btree_kv.cc:    btree_kv_ops->get_data_size = _get_data_size;
+btree_kv.cc:    btree_kv_ops->get_kv_size = _get_kv_size;
+btree_kv.cc:    btree_kv_ops->init_kv_var = _init_kv_var;
+btree_kv.cc:    btree_kv_ops->free_kv_var = NULL;
+btree_kv.cc:    btree_kv_ops->get_nth_idx = _get_nth_idx;
+btree_kv.cc:    btree_kv_ops->get_nth_splitter = _get_nth_splitter;
+btree_kv.cc:    btree_kv_ops->cmp = _cmp_binary64;
+btree_kv.cc:    btree_kv_ops->bid2value = _bid_to_value_64;
+btree_kv.cc:    btree_kv_ops->value2bid = _value_to_bid_64;
+btree_kv.cc:    btree_kv_ops->get_kv = _get_kv;
+btree_kv.cc:    btree_kv_ops->set_kv = _set_kv;
+btree_kv.cc:    btree_kv_ops->ins_kv = _ins_kv;
+btree_kv.cc:    btree_kv_ops->copy_kv = _copy_kv;
+btree_kv.cc:    btree_kv_ops->set_key = _set_key;
+btree_kv.cc:    btree_kv_ops->set_value = _set_value;
+btree_kv.cc:    btree_kv_ops->get_data_size = _get_data_size;
+btree_kv.cc:    btree_kv_ops->get_kv_size = _get_kv_size;
+btree_kv.cc:    btree_kv_ops->init_kv_var = _init_kv_var;
+btree_kv.cc:    btree_kv_ops->free_kv_var = NULL;
+btree_kv.cc:    btree_kv_ops->get_nth_idx = _get_nth_idx;
+btree_kv.cc:    btree_kv_ops->get_nth_splitter = _get_nth_splitter;
+btree_kv.cc:    btree_kv_ops->cmp = _cmp_binary32;
+btree_kv.cc:    btree_kv_ops->bid2value = _bid_to_value_64;
+btree_kv.cc:    btree_kv_ops->value2bid = _value_to_bid_64;
+btree_kv.cc:    btree_kv_ops->get_kv = _get_kv;
+btree_kv.cc:    btree_kv_ops->set_kv = _set_kv;
+btree_kv.cc:    btree_kv_ops->ins_kv = _ins_kv;
+btree_kv.cc:    btree_kv_ops->copy_kv = _copy_kv;
+btree_kv.cc:    btree_kv_ops->set_key = _set_key;
+btree_kv.cc:    btree_kv_ops->set_value = _set_value;
+btree_kv.cc:    btree_kv_ops->get_data_size = _get_data_size;
+btree_kv.cc:    btree_kv_ops->get_kv_size = _get_kv_size;
+btree_kv.cc:    btree_kv_ops->init_kv_var = _init_kv_var;
+btree_kv.cc:    btree_kv_ops->free_kv_var = NULL;
+btree_kv.cc:    btree_kv_ops->get_nth_idx = _get_nth_idx;
+btree_kv.cc:    btree_kv_ops->get_nth_splitter = _get_nth_splitter;
+btree_kv.cc:    btree_kv_ops->cmp = _cmp_binary_general;
+btree_kv.cc:    btree_kv_ops->bid2value = _bid_to_value_64;
+btree_kv.cc:    btree_kv_ops->value2bid = _value_to_bid_64;

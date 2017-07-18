@@ -87,6 +87,7 @@ struct filemgr_config {
 	/* begin: ogh */
 	uint8_t streamid;
 	uint8_t fallocate;
+	uint8_t trim;
 	/* end: ogh */
     uint64_t prefetch_duration;
     uint16_t num_wal_shards;
@@ -829,7 +830,10 @@ fdb_status filemgr_read_dirty(struct filemgr *file,
                               struct filemgr_dirty_update_node *node_writer,
                               err_log_callback *log_callback,
                               bool read_on_cache_miss);
-
+/* [[ogh: Trim */
+fdb_status filemgr_fitrim_file(struct filemgr *file,     
+		                                size_t bid, size_t count);
+// ]]ogh: trim 
 void _kvs_stat_set(struct filemgr *file,
                    fdb_kvs_id_t kv_id,
                    struct kvs_stat stat);

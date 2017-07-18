@@ -699,11 +699,13 @@ void filemgr_prefetch(struct filemgr *file,
 
 /* [[ogh : fitrim */
 fdb_status filemgr_fitrim_file(struct filemgr *file, 
-								err_log_callback *log_callback)
+								size_t bid, size_t count)
+								
 {
 	struct fstrim_range fsr;
-	fsr.start = 0;
-	fsr.len = 0;
+	fsr.start = bid * file->blocksize;
+	fsr.len = count * file->blocksize;
+
 	return (fdb_status)ioctl(file->fd, FITRIM, &fsr);
 }
 /* ]]ogh : fitrim */

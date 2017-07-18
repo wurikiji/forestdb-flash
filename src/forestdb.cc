@@ -1427,6 +1427,7 @@ static void _fdb_init_file_config(const fdb_config *config,
                           std::memory_order_relaxed);
 	fconfig->streamid = config->streamid;
 	fconfig->fallocate = config->fallocate;
+	fconfig->trim = config->trim;
 }
 
 fdb_status _fdb_clone_snapshot(fdb_kvs_handle *handle_in,
@@ -4020,6 +4021,30 @@ fdb_status fdb_commit(fdb_file_handle *fhandle, fdb_commit_opt_t opt)
             !(fhandle->root->config.durability_opt & FDB_DRB_ASYNC));
 }
 
+// [[ogh: Trim stale blocks 
+void _fdb_trim_reusable_blocks(fdb_kvs_handle *handle)
+{
+	stale_header_info sheader;
+	reusable_block_list blist;
+	
+	if (handle->file->config->trim) {
+		sheader = fdb_get_smallest_active_header(handle);
+
+		if (sheader.bid == BLK_NOT_FOUND) {
+			return ;
+		}
+
+		blist = fdb_get_reusable_block(handle, sheader);
+
+		for (int i = 0; i < (size_t)blist.n_blocks; i++) {
+			filemgr_fitrim_file(handle->file, 
+					blist.blocks[i].bid, blist.blocks[i].count);
+		}
+		printf("Done trim\n");
+		free(blist.blocks);
+	}
+}
+// ]]ogh: trim stale blocks
 fdb_status _fdb_commit(fdb_kvs_handle *handle, fdb_commit_opt_t opt, bool sync)
 {
     uint64_t cur_bmp_revnum;
@@ -4191,6 +4216,10 @@ fdb_commit_start:
                 if (block_reclaimed) {
                     sb_bmp_append_doc(handle);
                 }
+				//[[ogh]] : trim stale blocks
+				
+				printf("Call trim\n");
+				_fdb_trim_reusable_blocks(handle);
             } else if (decision == SBD_RESERVE) {
                 // reserve reusable blocks
                 btreeblk_discard_blocks(handle->bhandle);
@@ -4202,6 +4231,9 @@ fdb_commit_start:
                 // switch reserved reusable blocks
                 btreeblk_discard_blocks(handle->bhandle);
                 sb_switch_reserved_blocks(handle->file);
+				//[[ogh]] : trim stale blocks
+				printf("Call trim\n");
+				_fdb_trim_reusable_blocks(handle);
             }
             // header should be updated one more time
             // since block reclaiming or stale block gathering changes root nodes

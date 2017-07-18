@@ -486,7 +486,7 @@ typedef struct {
 	uint8_t fallocate;
 	uint8_t compaction_libaio;
 	uint8_t streamid;
-	uint8_t trim_ratio;
+	uint8_t trim;
 	/* end: Added by ogh */
 } fdb_config;
 

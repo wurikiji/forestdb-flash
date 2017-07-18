@@ -99,7 +99,7 @@ fdb_config get_default_config(void) {
 	/* [[ogh */
 	fconfig.streamid = 0;
 	fconfig.fallocate = 0;
-	fconfig.trim_ratio = 0;
+	fconfig.trim= 0;
 	fconfig.compaction_libaio = 0;
 	// ]]ogh
 
