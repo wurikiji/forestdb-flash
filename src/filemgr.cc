@@ -703,10 +703,15 @@ fdb_status filemgr_fitrim_file(struct filemgr *file,
 								
 {
 	struct fstrim_range fsr;
+	fdb_status ret;
 	fsr.start = bid * file->blocksize;
 	fsr.len = count * file->blocksize;
 
-	return (fdb_status)ioctl(file->fd, FITRIM, &fsr);
+	// print for debug
+	//printf("<%lld>", fsr.len);
+	ret = (fdb_status)ioctl(file->fd, FITRIM, &fsr);
+	//printf("<%lld>[%s]", fsr.len, strerror(errno)); 
+	return ret;
 }
 /* ]]ogh : fitrim */
 fdb_status filemgr_does_file_exist(char *filename) {
@@ -759,7 +764,6 @@ filemgr_open_result filemgr_open(char *filename, struct filemgr_ops *ops,
     filemgr_open_result result = {NULL, FDB_RESULT_OPEN_FAIL};
 
     filemgr_init(config);
-
     if (config->encryption_key.algorithm != FDB_ENCRYPTION_NONE && global_config.ncacheblock <= 0) {
         // cannot use encryption without a block cache
         result.rv = FDB_RESULT_CRYPTO_ERROR;
@@ -770,11 +774,9 @@ filemgr_open_result filemgr_open(char *filename, struct filemgr_ops *ops,
     query.filename = filename;
     spin_lock(&filemgr_openlock);
     e = hash_find(&hash, &query.e);
-
     if (e) {
         // already opened (return existing structure)
         file = _get_entry(e, struct filemgr, e);
-
         if (atomic_incr_uint32_t(&file->ref_count) > 1 &&
             atomic_get_uint8_t(&file->status) != FILE_CLOSED) {
             spin_unlock(&filemgr_openlock);
@@ -852,7 +854,6 @@ filemgr_open_result filemgr_open(char *filename, struct filemgr_ops *ops,
             return result;
         }
     }
-
     file_flag = O_RDWR;
     if (create) {
         file_flag |= O_CREAT;
@@ -895,7 +896,7 @@ filemgr_open_result filemgr_open(char *filename, struct filemgr_ops *ops,
     file->new_file = NULL;
     file->old_filename = NULL;
     file->fd = fd;
-
+    
     cs_off_t offset = file->ops->goto_eof(file->fd);
     if (offset < 0) {
         _log_errno_str(file->ops, log_callback, (fdb_status) offset, "SEEK_END", filename);

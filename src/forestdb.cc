@@ -1611,7 +1611,6 @@ fdb_status _fdb_open(fdb_kvs_handle *handle,
         return (fdb_status) result.rv;
     }
     handle->file = result.file;
-
     if (config->compaction_mode == FDB_COMPACTION_MANUAL &&
         strcmp(filename, actual_filename)) {
         // It is in-place compacted file if
@@ -4026,7 +4025,7 @@ void _fdb_trim_reusable_blocks(fdb_kvs_handle *handle)
 {
 	stale_header_info sheader;
 	reusable_block_list blist;
-	
+	int res;
 	if (handle->file->config->trim) {
 		sheader = fdb_get_smallest_active_header(handle);
 
@@ -4037,14 +4036,16 @@ void _fdb_trim_reusable_blocks(fdb_kvs_handle *handle)
 		blist = fdb_get_reusable_block(handle, sheader);
 
 		for (int i = 0; i < (size_t)blist.n_blocks; i++) {
-			filemgr_fitrim_file(handle->file, 
+			res = filemgr_fitrim_file(handle->file, 
 					blist.blocks[i].bid, blist.blocks[i].count);
+			printf("[%d]", res); // add for debug
 		}
 		printf("Done trim\n");
 		free(blist.blocks);
 	}
 }
 // ]]ogh: trim stale blocks
+
 fdb_status _fdb_commit(fdb_kvs_handle *handle, fdb_commit_opt_t opt, bool sync)
 {
     uint64_t cur_bmp_revnum;

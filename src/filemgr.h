@@ -67,6 +67,7 @@ struct filemgr_config {
         num_wal_shards = config.num_wal_shards;
         num_bcache_shards = config.num_bcache_shards;
         encryption_key = config.encryption_key;
+	trim = config.trim; // trim config setting
         atomic_store_uint64_t(&block_reusing_threshold,
                               atomic_get_uint64_t(&config.block_reusing_threshold,
                                                   std::memory_order_relaxed),
