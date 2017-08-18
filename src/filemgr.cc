@@ -698,15 +698,22 @@ void filemgr_prefetch(struct filemgr *file,
 }
 
 /* [[ogh : fitrim */
-fdb_status filemgr_fitrim_file(struct filemgr *file, 
+int filemgr_fitrim_file(struct filemgr *file, 
 								size_t bid, size_t count)
 								
 {
 	struct fstrim_range fsr;
+	int ret = 0;
 	fsr.start = bid * file->blocksize;
 	fsr.len = count * file->blocksize;
+	fsr.minlen = count * file->blocksize;
 
-	return (fdb_status)ioctl(file->fd, FITRIM, &fsr);
+	ret = ioctl(file->fd, FITRIM, &fsr);
+	if (0 == ret) {
+		return fsr.len;
+	} else {
+		return ret;
+	}
 }
 /* ]]ogh : fitrim */
 fdb_status filemgr_does_file_exist(char *filename) {

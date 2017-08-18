@@ -4026,7 +4026,7 @@ void _fdb_trim_reusable_blocks(fdb_kvs_handle *handle)
 {
 	stale_header_info sheader;
 	reusable_block_list blist;
-	fdb_status result;
+	int result;
 	
 	if (handle->file->config->trim) {
 		sheader = fdb_get_smallest_active_header(handle);
@@ -4040,8 +4040,10 @@ void _fdb_trim_reusable_blocks(fdb_kvs_handle *handle)
 		for (int i = 0; i < (size_t)blist.n_blocks; i++) {
 			result = filemgr_fitrim_file(handle->file, 
 					blist.blocks[i].bid, blist.blocks[i].count);
-			if (result != FDB_RESULT_SUCCESS) {
-				return; 
+			if (result < 0) {
+				printf("\n\nFailed trim with return value %d\n\n", result);
+			} else {
+				printf("\n\n%d bytes trimmed\n\n", result);
 			}
 		}
 		free(blist.blocks);
