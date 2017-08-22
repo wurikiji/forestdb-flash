@@ -4041,9 +4041,13 @@ void _fdb_trim_reusable_blocks(fdb_kvs_handle *handle)
 			result = filemgr_fitrim_file(handle->file, 
 					blist.blocks[i].bid, blist.blocks[i].count);
 			if (result < 0) {
-				printf("\n\nFailed trim with return value %d\n\n", result);
+				printf("\n\n %s : ", handle->file->filename);
+				printf("Failed trim with return value %d\n\n", result);
 			} else {
-				printf("\n\n%d bytes trimmed\n\n", result);
+				printf("\n\n %s : ", handle->file->filename);
+				printf("%d bytes: %d bytes trimmed\n\n", 
+						blist.blocks[i].count * handle->file->blocksize, 
+						result);
 			}
 		}
 		free(blist.blocks);
@@ -4221,8 +4225,6 @@ fdb_commit_start:
                 if (block_reclaimed) {
                     sb_bmp_append_doc(handle);
                 }
-				//[[ogh]] : trim stale blocks
-				_fdb_trim_reusable_blocks(handle);
             } else if (decision == SBD_RESERVE) {
                 // reserve reusable blocks
                 btreeblk_discard_blocks(handle->bhandle);
@@ -4234,8 +4236,6 @@ fdb_commit_start:
                 // switch reserved reusable blocks
                 btreeblk_discard_blocks(handle->bhandle);
                 sb_switch_reserved_blocks(handle->file);
-				//[[ogh]] : trim stale blocks
-				_fdb_trim_reusable_blocks(handle);
             }
             // header should be updated one more time
             // since block reclaiming or stale block gathering changes root nodes

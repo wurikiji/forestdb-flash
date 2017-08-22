@@ -75,6 +75,9 @@ struct filemgr_config {
                               atomic_get_uint64_t(&config.num_keeping_headers,
                                                   std::memory_order_relaxed),
                               std::memory_order_relaxed);
+		streamid = config.streamid;
+		trim = config.trim;
+		fallocate = config.fallocate;
         return *this;
     }
 
