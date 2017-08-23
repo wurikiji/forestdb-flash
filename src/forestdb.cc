@@ -4025,7 +4025,8 @@ void _fdb_trim_reusable_blocks(fdb_kvs_handle *handle)
 {
 	stale_header_info sheader;
 	reusable_block_list blist;
-	int res;
+	int result;
+	
 	if (handle->file->config->trim) {
 		sheader = fdb_get_smallest_active_header(handle);
 
@@ -4036,11 +4037,18 @@ void _fdb_trim_reusable_blocks(fdb_kvs_handle *handle)
 		blist = fdb_get_reusable_block(handle, sheader);
 
 		for (int i = 0; i < (size_t)blist.n_blocks; i++) {
-			res = filemgr_fitrim_file(handle->file, 
+			result = filemgr_fitrim_file(handle->file, 
 					blist.blocks[i].bid, blist.blocks[i].count);
-			printf("[%d]", res); // add for debug
+			if (result < 0) {
+				printf("\n\n %s : ", handle->file->filename);
+				printf("Failed trim with return value %d\n\n", result);
+			} else {
+				printf("\n\n %s : ", handle->file->filename);
+				printf("%d bytes: %d bytes trimmed\n\n", 
+						blist.blocks[i].count * handle->file->blocksize, 
+						result);
+			}
 		}
-		printf("Done trim\n");
 		free(blist.blocks);
 	}
 }
@@ -4217,10 +4225,6 @@ fdb_commit_start:
                 if (block_reclaimed) {
                     sb_bmp_append_doc(handle);
                 }
-				//[[ogh]] : trim stale blocks
-				
-				printf("Call trim\n");
-				_fdb_trim_reusable_blocks(handle);
             } else if (decision == SBD_RESERVE) {
                 // reserve reusable blocks
                 btreeblk_discard_blocks(handle->bhandle);
@@ -4232,9 +4236,6 @@ fdb_commit_start:
                 // switch reserved reusable blocks
                 btreeblk_discard_blocks(handle->bhandle);
                 sb_switch_reserved_blocks(handle->file);
-				//[[ogh]] : trim stale blocks
-				printf("Call trim\n");
-				_fdb_trim_reusable_blocks(handle);
             }
             // header should be updated one more time
             // since block reclaiming or stale block gathering changes root nodes

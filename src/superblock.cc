@@ -535,6 +535,7 @@ bool sb_reclaim_reusable_blocks(fdb_kvs_handle *handle)
     stale_header_info sheader;
     reusable_block_list blist;
     struct superblock *sb = handle->file->sb;
+	int result = 0;
 
     // should flush all dirty blocks in cache
     filemgr_sync(handle->file, false, &handle->log_callback);
@@ -575,7 +576,12 @@ bool sb_reclaim_reusable_blocks(fdb_kvs_handle *handle)
         sb->num_free_blocks += blist.blocks[i].count;
         // add info for supplementary bmp index
         _add_bmp_idx(&sb->bmp_idx, blist.blocks[i].bid, blist.blocks[i].count);
-    }
+
+		// [[ogh: TRIM 
+		result = filemgr_fitrim_file(handle->file, 
+				blist.blocks[i].bid, blist.blocks[i].count);
+		// ]]ogh: TRIM
+	}
     free(blist.blocks);
 
     sb->min_live_hdr_revnum = sheader.revnum;
@@ -594,6 +600,7 @@ bool sb_reserve_next_reusable_blocks(fdb_kvs_handle *handle)
     reusable_block_list blist;
     struct superblock *sb = handle->file->sb;
     struct sb_rsv_bmp *rsv = NULL;
+	int result = 0;
 
     if (sb->rsv_bmp) {
         // next bitmap already reclaimed
@@ -629,6 +636,10 @@ bool sb_reserve_next_reusable_blocks(fdb_kvs_handle *handle)
             }
             rsv->num_free_blocks += blist.blocks[i].count;
             _add_bmp_idx(&rsv->bmp_idx, blist.blocks[i].bid, blist.blocks[i].count);
+			// [[ogh: TRIM 
+			result = filemgr_fitrim_file(handle->file, 
+					blist.blocks[i].bid, blist.blocks[i].count);
+			// ]]ogh: TRIM
         }
         free(blist.blocks);
 

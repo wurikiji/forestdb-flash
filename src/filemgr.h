@@ -76,6 +76,9 @@ struct filemgr_config {
                               atomic_get_uint64_t(&config.num_keeping_headers,
                                                   std::memory_order_relaxed),
                               std::memory_order_relaxed);
+		streamid = config.streamid;
+		trim = config.trim;
+		fallocate = config.fallocate;
         return *this;
     }
 
@@ -832,7 +835,7 @@ fdb_status filemgr_read_dirty(struct filemgr *file,
                               err_log_callback *log_callback,
                               bool read_on_cache_miss);
 /* [[ogh: Trim */
-fdb_status filemgr_fitrim_file(struct filemgr *file,     
+int filemgr_fitrim_file(struct filemgr *file,     
 		                                size_t bid, size_t count);
 // ]]ogh: trim 
 void _kvs_stat_set(struct filemgr *file,

@@ -698,20 +698,34 @@ void filemgr_prefetch(struct filemgr *file,
 }
 
 /* [[ogh : fitrim */
-fdb_status filemgr_fitrim_file(struct filemgr *file, 
+int filemgr_fitrim_file(struct filemgr *file, 
 								size_t bid, size_t count)
 								
 {
 	struct fstrim_range fsr;
-	fdb_status ret;
+	int ret = 0;
 	fsr.start = bid * file->blocksize;
 	fsr.len = count * file->blocksize;
+	fsr.minlen = count * file->blocksize;
 
-	// print for debug
-	//printf("<%lld>", fsr.len);
-	ret = (fdb_status)ioctl(file->fd, FITRIM, &fsr);
-	//printf("<%lld>[%s]", fsr.len, strerror(errno)); 
+	ret = fallocate(file->fd, (FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE),
+			fsr.start, fsr.len);
+
+	if (ret) {
+		printf("Failed punch hole with %d\n", ret);
+	}
 	return ret;
+
+#if 0
+	//PUNCH_HOLE includes TRIM
+	ret = ioctl(file->fd, FITRIM, &fsr);
+	if (ret) {
+		printf("Failed ioctl fitrim with %d\n", ret);
+		return ret;
+	} else {
+		return fsr.len;
+	}
+#endif
 }
 /* ]]ogh : fitrim */
 fdb_status filemgr_does_file_exist(char *filename) {
