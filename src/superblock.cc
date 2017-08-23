@@ -578,10 +578,12 @@ bool sb_reclaim_reusable_blocks(fdb_kvs_handle *handle)
         _add_bmp_idx(&sb->bmp_idx, blist.blocks[i].bid, blist.blocks[i].count);
 
 		// [[ogh: TRIM 
+	if(handle->file->config->trim){
 		result = filemgr_fitrim_file(handle->file, 
 				blist.blocks[i].bid, blist.blocks[i].count);
-		// ]]ogh: TRIM
 	}
+		// ]]ogh: TRIM
+    }
     free(blist.blocks);
 
     sb->min_live_hdr_revnum = sheader.revnum;
@@ -637,9 +639,11 @@ bool sb_reserve_next_reusable_blocks(fdb_kvs_handle *handle)
             rsv->num_free_blocks += blist.blocks[i].count;
             _add_bmp_idx(&rsv->bmp_idx, blist.blocks[i].bid, blist.blocks[i].count);
 			// [[ogh: TRIM 
+	    if(handle->file->config->trim){
 			result = filemgr_fitrim_file(handle->file, 
 					blist.blocks[i].bid, blist.blocks[i].count);
 			// ]]ogh: TRIM
+	    }
         }
         free(blist.blocks);
 
